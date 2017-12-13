@@ -29,10 +29,10 @@ class Agent:
 
     Attributes:
         - _FoodReserve: tba
-        - _GenCounter: if agents mate and create and offspring, this counter
-            increases by 1. Merely a fun paramater as of this writing. (if used
-            anyway)
-        - _GridPosXY: X/Y position on the grid
+        - _GenCounter: (generation counter) if agents mate and create and offspring,
+        this counter increases by 1. Merely a fun paramater as of this writing.
+        (if used anyway)
+        - _GridPosX/Y: X/Y position on the grid
     """
 
     # order of arguments in __init__ determines input order of arguments
@@ -48,10 +48,3 @@ class Agent:
         If an agent dies, it is removed from the list of agents
         """
         del Agents[self._ID]
-
-
-
-# A = Agent(4, (1,1))
-# if(A._GenCounter == 0):
-#     print('hello')
-#     print(A._GridPosX)

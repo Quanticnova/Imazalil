@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # general testing script for class related stuff
 import uuid
+import random as rd
+import matplotlib.pyplot as plt
+
 
 Agents = dict()
 
@@ -50,5 +53,30 @@ class derivedFoo(Foo):
     def Move(self):
         print(self._Loc)
 
-baz = derivedFoo(9,8)
-baz.Move()
+# baz = derivedFoo(9,8)
+# baz.Move()
+#
+# A = Foo(4,5)
+# B = Foo(4,5)
+# C = Foo(4,5)
+# D = Foo(4,5)
+# print(Agents, sep='\n')
+# for _ in range(D._FoodReserve):
+#     D.Action()
+# print(Agents, sep='\n')
+N = 1000
+
+l = []
+id_dic = dict()
+for t in range(N):
+    l.append(Foo(2, t))
+    id_dic[l[-1]._ID] = t
+
+#print(id_dic, l,  sep='\n')
+
+keys_shuffled = list(id_dic.keys())
+rd.shuffle(keys_shuffled)
+
+hurrdurr = []
+for key in keys_shuffled:
+     hurrdurr.append(id_dic[key])
