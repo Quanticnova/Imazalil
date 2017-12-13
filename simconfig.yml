@@ -1,0 +1,12 @@
+Grid:
+    NX: 100  # number of X gridcells
+    NY: 100  # number of Y gridcells
+    ResRate: 0.5  # rate of resource regrowing
+
+Sim:
+    NPred: 100  # number of predators
+    NPrey: 100  # number of preys
+    Pflee: 0.25  # probability for a prey to flee from a predator
+    Pmate:  # probabilities for an agent to mate
+        Pred: 0.4
+        Prey: 0.5
