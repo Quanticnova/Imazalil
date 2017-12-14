@@ -49,13 +49,15 @@ class derivedFoo(Foo):
     """
     even more docstring
     """
+    _pflee = 7.2
 
     def Move(self):
         print(self._Loc)
 
-# baz = derivedFoo(9,8)
-# baz.Move()
-#
+baz = derivedFoo(9,8)
+baz.Move()
+print(baz._pflee)
+# #
 # A = Foo(4,5)
 # B = Foo(4,5)
 # C = Foo(4,5)
@@ -64,19 +66,19 @@ class derivedFoo(Foo):
 # for _ in range(D._FoodReserve):
 #     D.Action()
 # print(Agents, sep='\n')
-N = 1000
-
-l = []
-id_dic = dict()
-for t in range(N):
-    l.append(Foo(2, t))
-    id_dic[l[-1]._ID] = t
-
-#print(id_dic, l,  sep='\n')
-
-keys_shuffled = list(id_dic.keys())
-rd.shuffle(keys_shuffled)
-
-hurrdurr = []
-for key in keys_shuffled:
-     hurrdurr.append(id_dic[key])
+# N = 1000
+#
+# l = []
+# id_dic = dict()
+# for t in range(N):
+#     l.append(Foo(2, t))
+#     id_dic[l[-1]._ID] = t
+#
+# #print(id_dic, l,  sep='\n')
+#
+# keys_shuffled = list(id_dic.keys())
+# rd.shuffle(keys_shuffled)
+#
+# hurrdurr = []
+# for key in keys_shuffled:
+#      hurrdurr.append(id_dic[key])
