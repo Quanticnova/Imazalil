@@ -12,6 +12,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import uuid
+import random as rd
 
 Agents = dict()
 
@@ -48,3 +49,47 @@ class Agent:
         If an agent dies, it is removed from the list of agents
         """
         del Agents[self._ID]
+
+    def getNbh(self):
+        """
+        This method returns a list of the moore neighbourhood of the agent. The
+        numbering is the following:
+            6 7 8
+            3 4 5
+            0 1 2
+        So clearly the Agent is placed in cell nr. 4.
+        """
+        nbh = []
+        delta = [-1, 0, 1]
+        for dy in delta:
+            for dx in delta:
+                nbh.append(self._GridPosX + dx, self._GridPosY + dy)
+        return nbh
+
+
+class Predator(Agent):
+    """
+    This class is derived from the Agent class.
+    """
+
+    def __init__(self, FoodReserve, GridPos, GenCounter):
+        super().__init__(FoodReserve, GridPos, GenCounter)
+
+
+
+class Grid:
+    """
+    hurr durr grid stuff
+    """
+    def __init__(self, width, height):
+        self._width = width
+        self._height = height
+        self._grid = []
+        for x in range(self._width):
+            for y in range(self._height):
+                self._grid.append([x,y])
+
+    def initialPositions(self, nAgents):
+        subgrid = self._grid[:nAgents]
+        shuffledGrid = rd.shuffle(shuffledGrid)
+        return shuffledGrid
