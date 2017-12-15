@@ -42,7 +42,7 @@ class Agent:
         self._GenCounter = GenCounter
         self._GridPosX, self._GridPosY = GridPos
         self._ID = str(uuid.uuid4())
-        Agents[self._ID] = tuple(self._GridPosX, self._GridPosY)
+        Agents[self._ID] = [self._GridPosX, self._GridPosY]
 
     def Die(self):
         """
@@ -63,7 +63,7 @@ class Agent:
         delta = [-1, 0, 1]
         for dy in delta:
             for dx in delta:
-                nbh.append(self._GridPosX + dx, self._GridPosY + dy)
+                nbh.append([self._GridPosX + dx, self._GridPosY + dy])
         return nbh
 
 
@@ -90,6 +90,7 @@ class Grid:
                 self._grid.append([x,y])
 
     def initialPositions(self, nAgents):
-        subgrid = self._grid[:nAgents]
-        shuffledGrid = rd.shuffle(shuffledGrid)
-        return shuffledGrid
+        shuffledGrid = self._grid
+        rd.shuffle(shuffledGrid)
+        return shuffledGrid[:nAgents]
+
