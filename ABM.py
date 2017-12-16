@@ -64,6 +64,10 @@ class Agent:
         for dy in delta:
             for dx in delta:
                 nbh.append([self._GridPosX + dx, self._GridPosY + dy])
+                # TODO: since we assume torodial grid, the above function can
+                # cause problems. Ideas: get a function that returns the exact
+                # indices of the cells or a function that calculates the right
+                # cell positions.
         return nbh
 
 
@@ -88,9 +92,10 @@ class Grid:
         for x in range(self._width):
             for y in range(self._height):
                 self._grid.append([x,y])
+                # TODO: maybe each cell carries a list of coordinates, and a list
+                # what it contains. e.g. [[x, y], [<Agent/Grass/Nothing>]]
 
     def initialPositions(self, nAgents):
         shuffledGrid = self._grid
         rd.shuffle(shuffledGrid)
         return shuffledGrid[:nAgents]
-
