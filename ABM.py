@@ -70,6 +70,14 @@ class Agent:
                 # cell positions.
         return nbh
 
+    def getNbdIdc(self, gridObject):
+        """
+        This method returns a list of the indices of the moore neighbourhood of
+        the agent. It should hopefully prevent the problems indicaded in the
+        TODO above.
+        """
+        idc = []
+        
 
 class Predator(Agent):
     """
