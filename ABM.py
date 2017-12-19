@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import uuid
 import random as rd
+import copy  # needed for deepcopies
 
 Agents = dict()
 
@@ -50,7 +51,7 @@ class Agent:
         """
         del Agents[self._ID]
 
-    def getNbh(self):
+    def getNbh(self, gridObject):
         """
         This method returns a list of the moore neighbourhood of the agent. The
         numbering is the following:
@@ -61,23 +62,32 @@ class Agent:
         """
         nbh = []
         delta = [-1, 0, 1]
+        x = self._GridPosX  # current X position
+        y = self._GridPosY  # current Y position
+        wid = gridObject._width  # grid width
+        hei = gridObject._height  # grid height
         for dy in delta:
             for dx in delta:
-                nbh.append([self._GridPosX + dx, self._GridPosY + dy])
-                # TODO: since we assume torodial grid, the above function can
-                # cause problems. Ideas: get a function that returns the exact
-                # indices of the cells or a function that calculates the right
-                # cell positions.
+                nbh.append([(x + dx + wid)%wid, (y + dy + hei)%hei])
         return nbh
+    #
+    #
+    # def getNbhIdx(self, gridObject):
+    #     """
+    #     This method returns a list of the indices of the moore neighbourhood of
+    #     the agent. It should hopefully prevent the problems indicaded in the
+    #     TODO above.
+    #     """
+    #     idx = []
+    #     # current agents' grid index
+    #     iagent = gridObject._grid.index([self._GridPosX, self._GridPosY])
+    #     # current agents' row and column
+    #     curcol, currow = divmod(iagent, gridObject._width)
+    #     for row in [-gridObject._width, 0, gridObject._width]:
+    #         for delta in [-1, 0, 1]:
+    #             idx.append(iagent + row + delta)
+    #     return idx
 
-    def getNbdIdc(self, gridObject):
-        """
-        This method returns a list of the indices of the moore neighbourhood of
-        the agent. It should hopefully prevent the problems indicaded in the
-        TODO above.
-        """
-        idc = []
-        
 
 class Predator(Agent):
     """
@@ -97,13 +107,13 @@ class Grid:
         self._width = width
         self._height = height
         self._grid = []
-        for x in range(self._width):
-            for y in range(self._height):
+        for y in range(self._height):
+            for x in range(self._width):
                 self._grid.append([x,y])
                 # TODO: maybe each cell carries a list of coordinates, and a list
                 # what it contains. e.g. [[x, y], [<Agent/Grass/Nothing>]]
 
     def initialPositions(self, nAgents):
-        shuffledGrid = self._grid
+        shuffledGrid = copy.deepcopy(self._grid)
         rd.shuffle(shuffledGrid)
         return shuffledGrid[:nAgents]
