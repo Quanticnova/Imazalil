@@ -51,7 +51,31 @@ class Agent:
         """
         del Agents[self._ID]
 
-    def getNbh(self, gridObject):
+    def get_fr(self):
+        """
+        Getter-function for food reserve value
+        """
+        return self._FoodReserve
+
+    def get_cgp(self):
+        """
+        Getter-function for current grid position.
+        """
+        return [self._GridPosX, self._GridPosY]
+
+    def get_ID(self):
+        """
+        Getter-function for the agents ID.
+        """
+        return self._ID
+
+    def get_gen(self):
+        """
+        Getter-function for the generation counter.
+        """
+        return self._GenCounter  
+        
+    def get_Nbh(self, gridObject):
         """
         This method returns a list of the moore neighbourhood of the agent. The
         numbering is the following:
@@ -64,8 +88,8 @@ class Agent:
         delta = [-1, 0, 1]
         x = self._GridPosX  # current X position
         y = self._GridPosY  # current Y position
-        wid = gridObject._width  # grid width
-        hei = gridObject._height  # grid height
+        wid = gridObject.get_width()  # grid width
+        hei = gridObject.get_height  # grid height
         for dy in delta:
             for dx in delta:
                 nbh.append([(x + dx + wid)%wid, (y + dy + hei)%hei])
@@ -112,8 +136,30 @@ class Grid:
                 self._grid.append([x,y])
                 # TODO: maybe each cell carries a list of coordinates, and a list
                 # what it contains. e.g. [[x, y], [<Agent/Grass/Nothing>]]
+    
+    def get_width(self):
+        """
+        Getter-function for the grid width.  
+        """
+        return self._width
+
+    def get_height(self):
+        """
+        Getter-function for the grid height.  
+        """
+        return self._height
+
+    def get_grid(self):
+        """
+        Getter-function for the grid positions. 
+        """
+        return self._grid 
 
     def initialPositions(self, nAgents):
+        """
+        This method returns a list of grid positions randomly selected for a given number of Agents. 
+        """
+        # TODO: Error handling if too many agents are given. 
         shuffledGrid = copy.deepcopy(self._grid)
         rd.shuffle(shuffledGrid)
         return shuffledGrid[:nAgents]
