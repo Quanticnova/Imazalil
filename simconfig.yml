@@ -4,9 +4,9 @@ Grid:
     ResRate: 0.5  # rate of resource regrowing
 
 Sim:
-    NEpoch: 20  # number of epochs the simulation should run
-    NPred: 100  # number of predators
-    NPrey: 100  # number of preys
+    NEpoch: 100  # number of epochs the simulation should run
+    RhoPred: 0.2  # density of predators
+    RhoPrey: 0.215  # density of preys
 
 Prey:
     Pflee: 0.25  # probability to flee
