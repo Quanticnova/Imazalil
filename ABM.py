@@ -75,8 +75,9 @@ class Agent:
         
     def get_kin(self):
         """
-        Getter-function for the kin type. 
+        Getter-function for the kin type.
         """
+        return self._kin 
 
     def get_maxfr(self):
         """
@@ -104,36 +105,36 @@ class Agent:
         x = self._GridPosX  # current X position
         y = self._GridPosY  # current Y position
         wid = gridObject.get_width()  # grid width
-        hei = gridObject.get_height  # grid height
+        hei = gridObject.get_height()  # grid height
         for dy in delta:
             for dx in delta:
                 nbh.append([(x + dx + wid)%wid, (y + dy + hei)%hei])
         return nbh
 
-    def Move(self, gridObject, agentsdict, direction=-1):
+    def Move(self, Nbh, NbhAgents, direction=-1):
         """
         This method moves the Agent to one of the neighbouring cells. If default value for direction remains 
         unchanged, the move is random. A prey can only move to empty cells. A predator can move to a cell already
         occupied by a prey to try and eat it with probability 1-pFlee. 
         """
-        nbh = self.get_Nbh(gridObject)  # find neighbouring cells
-        currentPos = gridObject.get_currentPositions(agentsdict)  # get current positions of all agents
-        nbhAgents = [c for c in nbh if c in currentPos[1]]  # find agents in neighbourhood of said agent
+        #nbh = self.get_Nbh(gridObject)  # find neighbouring cells
+        #currentPos = gridObject.get_currentPositions(agentsdict)  # get current positions of all agents
+        #nbhAgents = [c for c in nbh if c in currentPos[1]]  # find agents in neighbourhood of said agent
         possibleMove = nbh[:]  # copy of neighbourhood for better understanding
         
         #if(self.get_kin() is not None):
-        for n in nbhAgents:
+        for n in NbhAgents:
             possibleMove.remove(n)  # remove all occupied neighbouring cells
             
-        newPos = rd.choice(possibleMove)  # choose new position randomly
-        self._GridPosX, self._GridPosY = newPos
+        if(len(possibleMove)):
+            newPos = rd.choice(possibleMove)  # choose new position randomly
+            self._GridPosX, self._GridPosY = newPos
 
-    def Eat(self, gridObject, agentsdict):
+    def Eat(self, gridObject, Nbh, NbhAgents, currentPos, agentsdict):
         """
         This method lets an agent eat; whether its grass or prey. 
         """
         MaxFoodReserve = self.get_maxfr()
-        #self._FoodReserve -= 1
         if(self._FoodReserve-1 <= 0):
             self._kin = None
         else:
@@ -145,17 +146,17 @@ class Agent:
                 self._FoodReserve = MaxFoodReserve
         
         elif(self._kin is "Pred"):
-            nbh = self.get_Nbh(gridObject)
-            currentPos = gridObject.get_currentPositions(agentsdict)
-            nbhAgents = [c for c in nbh if c in currentPos[1]]
-            if(len(nbhAgents) > 1):  # if neighbours contain more than the central agent 
-                for n in nbhAgents:
+            #nbh = self.get_Nbh(gridObject)
+            #currentPos = gridObject.get_currentPositions(agentsdict)
+            #nbhAgents = [c for c in nbh if c in currentPos[1]]
+            if(len(NbhAgents) > 1):  # if neighbours contain more than the central agent 
+                for n in NbhAgents:
                     idx = currentPos[1].index(n)
-                    if(currentPos[2][idx] is "Pred"):
-                        nbhAgents.remove(n)  # remove all predator agents in the neighbourhood
+                    if(currentPos[2][idx] is "Pred" or currentPos[2][idx] is not None):
+                        NbhAgents.remove(n)  # remove all predator agents in the neighbourhood
                 
-                if(len(nbhAgents)>0):
-                    foodpos = rd.choice(nbhAgents)
+                if(len(NbhAgents)):
+                    foodpos = rd.choice(NbhAgents)
                     # TODO: possibility to flee 
                     food_idx = currentPos[1].index(foodpos)  # index of prey to be eaten in list of current agent pos
                     agentsdict[currentPos[0][food_idx]]._kin = None  # set kin type to None for later cleanup
@@ -165,10 +166,16 @@ class Agent:
                         self._FoodReserve = MaxFoodReserve
                     
                 else:
-                    self.Move(gridObject, agentsdict)
+                    self.Move(Nbh, NbhAgents)
             else:
-                self.Move(gridObject, agentsdict)
-    
+                pass # if only one Agent is in the neighbourhood, it's the 
+    # TODO: fix the problenm with scatter
+    # TODO: fix the code above; too complicated and redundant 
+    # TODO: write a function for increasing/decreasing the food reserve 
+    # TODO: maybe introduce a sorting for the list -> speed improvement? 
+
+
+
     def createOffspring(self, gridObject, agentsdict, newbornDict):
         if(self._FoodReserve > self._MaxFoodReserve/2):
             self._FoodReserve = self._FoodReserve - 4  # TODO: parameterize this !!!!
@@ -282,6 +289,17 @@ class Grid:
             kins.append(agent.get_kin())
         return [IDs, cgps, kins]
 
+    def get_NbhAgents(self, agentobject, agentsdict):
+        """
+        Getter-function to return the 9-neighbourhood and the corresponding Agents in that neighbourhood for a given Agent
+        object. 
+        """
+        Nbh = agentobject.get_Nbh(self)
+        currentPos = self.get_currentPositions(agentsdict)
+        NbhAgents = [c for c in Nbh if c in currentPos[1]]  # find agents in neighbourhood of said agent
+        
+        return Nbh, NbhAgents, currentPos 
+
 # general functions for the agent based model below here:
 def Agents_cleanup(agentsdict):
     IDs = []
@@ -292,11 +310,9 @@ def Agents_cleanup(agentsdict):
         if(agentsdict[ID].get_kin() is None):
             agentsdict[ID].Die(agentsdict)
 
-def lifecycle(agentsdict, newborndict, gridObject):
+def lifecycle(gridObject, agentsdict, newborndict):
     # death cometh before new life may arise
-    IDs = []
-    for _ in agentsdict.keys():
-        IDs.append(_)
+    IDs = list(agentsdict.keys()) 
     
     # remove all agents who died in the last iteration, i.e. have kintype None.
     for ID in IDs:
