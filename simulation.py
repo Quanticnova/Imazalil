@@ -48,7 +48,6 @@ for _ in range(npred, num_agents):
 
 ################# actual simulation below here ############################## 
 
-# TODO: create a list of the dictionarys keys, shuffle the keys, the iterate over the shuffled keys. 
 if(__name__ == '__main__'):
     print(":: Simulation start", dt.datetime.now())
     for _ in range(cfg['Sim']['NEpoch']):
