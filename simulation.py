@@ -3,6 +3,8 @@ import yaml
 import ABM as abm
 import visualisations as vis
 import matplotlib.pyplot as plt
+import numpy as np 
+import datetime as dt 
 
 with open("simconfig.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
@@ -13,7 +15,7 @@ Agents = dict() # initialize empty agent dictionary
 newborn = dict() # initialize empty newborn dictionary 
 
 # fixed seed for reproducability
-rd.seed(a=12345678)
+np.random.seed(12345678)
 
 # grid
 w = cfg['Grid']['NX']
@@ -46,14 +48,25 @@ for _ in range(npred, num_agents):
 
 ################# actual simulation below here ############################## 
 
-for _ in range(cfg['Sim']['NEpoch']):
-    for ID, a in Agents.items():
-        if(a.get_kin() is not None):
-            roll = rd.random()
-            if(roll < a.get_pBreed()):
-                a.createOffspring(grid, Agents, newborn)
-            else:
-                a.Eat(grid, Agents)
-    abm.lifecycle(Agents, newborn, grid)  # cleanup all the dead Agents
-    fig, ax = vis.show_agents(grid, Agents, savefig=True, title="timestep " + str(_))
-    plt.close(fig)
+# TODO: create a list of the dictionarys keys, shuffle the keys, the iterate over the shuffled keys. 
+if(__name__ == '__main__'):
+    print(":: Simulation start", dt.datetime.now())
+    for _ in range(cfg['Sim']['NEpoch']):
+        now = str(dt.datetime.now()).split(" ")[1].split(".")[0]
+        print(": Simulation step: ", _, " -- ", now)
+        agentkeys = list(Agents.keys())
+        np.random.shuffle(agentkeys) 
+        for ID in agentkeys:
+            a = Agents[ID]
+            if(a.get_kin() is not None):
+                Nbh, NbhAgents, currentPos = grid.get_NbhAgents(a, Agents)    
+                roll = np.random.rand()
+                if(roll < a.get_pBreed()):
+                    a.createOffspring(grid, Agents, newborn)
+                else:
+                    a.Eat(grid, Nbh, NbhAgents, currentPos, Agents)
+        abm.lifecycle(grid, Agents, newborn)  # cleanup all the dead Agents
+    
+        fig, ax = vis.show_agents(grid, Agents, savefig=True, title="timestep " + str(_))
+        plt.close(fig)
+    print(":: Simulation stop", dt.datetime.now())
