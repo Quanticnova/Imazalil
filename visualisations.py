@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import datetime as dt 
 
 # this script should contain all visualisation functionality like plotting routines etc. 
 
@@ -7,7 +8,6 @@ import numpy as np
 def plotAgents(ax, positions, label, marker='.', color='k', s=100, zorder=None, preprocess=True):
     if(preprocess):
         positions = np.array(positions).T
-    print(positions) 
     ax.scatter(*positions, marker=marker, color=color, s=s, label=label, zorder=zorder)
 
 def plotNbh(ax, positions, label='Nbh', centerlabel='Nbh center', marker='s', centermarker='x', color='yellow', 
@@ -18,7 +18,7 @@ def plotNbh(ax, positions, label='Nbh', centerlabel='Nbh center', marker='s', ce
     plotAgents(ax=ax, positions=center, label=centerlabel, marker=centermarker, color='k', s=centers, 
                zorder=centerzorder, preprocess=False)
 
-def show_agents(grid, agentsdict, showgrid=False, showlegend=False, figsize=(9,9), savefig=False, title=''):
+def show_agents(grid, agentsdict, showgrid=False, showlegend=False, figsize=(9,9), savefig=False, title='', numAgents=True):
     preypos = []
     predpos = []
     kinless = []
@@ -46,6 +46,8 @@ def show_agents(grid, agentsdict, showgrid=False, showlegend=False, figsize=(9,9
         ax.legend(bbox_to_anchor=(1.25, 1.0), fontsize=12)
     
     if(len(title)):
+        if(numAgents):
+            title = title + ", Pred: " + str(len(predpos)) + ", Prey: " + str(len(preypos))
         ax.set_title(title)
     
     if(savefig):
