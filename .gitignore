@@ -4,3 +4,4 @@ plots/*
 .DS_Store
 simconfig.yml
 _testing/*
+IT.py

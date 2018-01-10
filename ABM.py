@@ -179,15 +179,15 @@ class Agent:
 
 
 
-    def createOffspring(self, gridObject, agentsdict, newbornDict):
+    def createOffspring(self, Nbh, NbhAgents, currentPos, agentsdict, newbornDict):
         if(self._FoodReserve > self._MaxFoodReserve/2):
             self._FoodReserve = self._FoodReserve - 4  # TODO: parameterize this !!!!
-            nbh = self.get_Nbh(gridObject)  # get neighbourhood positions
-            currentPos = gridObject.get_currentPositions(agentsdict)
-            nbhAgents = [c for c in nbh if c in currentPos[1]]  # find agents in neighbourhood of said agent
-            possiblePlace = nbh[:]  # copy of neighbourhood for better understanding
+            #nbh = self.get_Nbh(gridObject)  # get neighbourhood positions
+            #currentPos = gridObject.get_currentPositions(agentsdict)
+            #nbhAgents = [c for c in nbh if c in currentPos[1]]  # find agents in neighbourhood of said agent
+            possiblePlace = Nbh[:]  # copy of neighbourhood for better understanding
         
-            for n in nbhAgents:
+            for n in NbhAgents:
                 possiblePlace.remove(n)  # remove all occupied neighbouring cells
             
             if(len(possiblePlace)):
@@ -200,9 +200,10 @@ class Agent:
             
                 elif(self._kin is "Prey"):
                     Prey(newbornDict, FoodReserve=4, GridPos=newPos, MaxFoodReserve=8, GenCounter=newgen)
-                
+        
+        else:
+            self.Move(Nbh, NbhAgents)  
 
-            # TODO: test this function!!! 
 
 class Predator(Agent):
     """
@@ -336,3 +337,10 @@ def lifecycle(gridObject, agentsdict, newborndict):
     
     # all newborn who have no place in this world shall now be brought to a better place. 
     newborndict.clear()
+
+def savesim(agentsdict):
+    """
+    This method stores the current simulation in a textfile, for later runs e.g. 
+    """
+
+    pass
