@@ -1,6 +1,6 @@
 Grid:
-    NX: 300  # number of X gridcells
-    NY: 300  # number of Y gridcells
+    NX: 100  # number of X gridcells
+    NY: 100  # number of Y gridcells
     ResRate: 0.5  # rate of resource regrowing
 
 Sim:
