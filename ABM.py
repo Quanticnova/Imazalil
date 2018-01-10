@@ -130,7 +130,7 @@ class Agent:
             newPos = rd.choice(possibleMove)  # choose new position randomly
             self._GridPosX, self._GridPosY = newPos
 
-    def Eat(self, gridObject, Nbh, NbhAgents, currentPos, agentsdict):
+    def Eat(self, gridObject, Nbh, NbhAgents, currentPos, agentsdict, pFlee):
         """
         This method lets an agent eat; whether its grass or prey. 
         """
@@ -141,7 +141,7 @@ class Agent:
             self._FoodReserve -= 1
         
         if(self._kin is "Prey" and self._FoodReserve < MaxFoodReserve - 1):
-            self._FoodReserve += 2
+            self._FoodReserve += 3
             if(self._FoodReserve > MaxFoodReserve):
                 self._FoodReserve = MaxFoodReserve
         
@@ -149,30 +149,37 @@ class Agent:
             #nbh = self.get_Nbh(gridObject)
             #currentPos = gridObject.get_currentPositions(agentsdict)
             #nbhAgents = [c for c in nbh if c in currentPos[1]]
-            if(len(NbhAgents) > 1):  # if neighbours contain more than the central agent 
-                ridx = []  # initialze list of indices to remove from NbhAgents list 
-                for n in NbhAgents:
-                    idx = currentPos[1].index(n)
-                    if(currentPos[2][idx] is "Pred" or currentPos[2][idx] is None):
-                        ridx.append(n)  # append all indices to remove
-                
-                for i in ridx:
-                    NbhAgents.remove(i)  # remove all predator agents in the neighbourhood
-                
-                if(len(NbhAgents)):
-                    foodpos = rd.choice(NbhAgents)
-                    # TODO: possibility to flee 
-                    food_idx = currentPos[1].index(foodpos)  # index of prey to be eaten in list of current agent pos
-                    agentsdict[currentPos[0][food_idx]]._kin = None  # set kin type to None for later cleanup
-                    self._GridPosX, self._GridPosY = foodpos  # move pred to preys position
-                    self._FoodReserve += 2  # actual eating 
-                    if(self._FoodReserve > MaxFoodReserve):
-                        self._FoodReserve = MaxFoodReserve
+            EatNbh = NbhAgents[:]
+            roll = np.random.rand()
+            if(roll > pFlee):  
+                if(len(EatNbh) > 1):  # if neighbours to be eaten contain more than the central agent 
+                    #ridx = []  # initialze list of indices to remove from NbhAgents list 
+                    for n in NbhAgents:
+                        idx = currentPos[1].index(n)
+                        if(currentPos[2][idx] is "Pred" or currentPos[2][idx] is None):
+                            #ridx.append(n)  # append all indices to remove
+                            EatNbh.remove(n) 
+
+                    #for i in ridx:
+                        #EatNbh.remove(i)  # remove all predator agents in the neighbourhood
                     
+                    if(len(EatNbh)):
+                        foodpos = rd.choice(EatNbh)
+                        # TODO: possibility to flee 
+                        food_idx = currentPos[1].index(foodpos)  # index of prey to be eaten in list of current agent pos
+                        agentsdict[currentPos[0][food_idx]]._kin = None  # set kin type to None for later cleanup
+                        self._GridPosX, self._GridPosY = foodpos  # move pred to preys position
+                        self._FoodReserve += 3  # actual eating 
+                        if(self._FoodReserve > MaxFoodReserve):
+                            self._FoodReserve = MaxFoodReserve
+                        
+                    else:
+                        self.Move(Nbh, NbhAgents)
                 else:
-                    self.Move(Nbh, NbhAgents)
+                    self.Move(Nbh, NbhAgents)  
             else:
-                pass # if only one Agent is in the neighbourhood, it's the 
+                self.Move(Nbh, NbhAgents)
+
     # TODO: fix the code above; too complicated and redundant 
     # TODO: write a function for increasing/decreasing the food reserve 
     # TODO: maybe introduce a sorting for the list -> speed improvement? 
@@ -330,7 +337,8 @@ def lifecycle(gridObject, agentsdict, newborndict):
     for newID, newagent in newborndict.items():
         if newagent.get_cgp() not in agentpos[1]:
             agentsdict[newID] = newagent
-        
+            agentpos[1].append(newagent.get_cgp())
+
         else:
             pass
             #maybe I should to something about that. TODO? 

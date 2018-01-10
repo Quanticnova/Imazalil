@@ -68,11 +68,9 @@ if(__name__ == '__main__'):
                 Nbh, NbhAgents, currentPos = grid.get_NbhAgents(a, Agents)
                 roll = np.random.rand()
                 if(roll < a.get_pBreed()):
-                    a.createOffspring(grid, Agents, newborn)
+                    a.createOffspring(Nbh, NbhAgents, currentPos, Agents, newborn)
                 else:
-                    roll = np.random.rand()
-                    if(roll > pFlee): 
-                        a.Eat(grid, Nbh, NbhAgents, currentPos, Agents)
+                    a.Eat(grid, Nbh, NbhAgents, currentPos, Agents, pFlee)
         abm.lifecycle(grid, Agents, newborn)  # cleanup all the dead Agents
 
         fig, ax = vis.show_agents(grid, Agents, savefig=True, title="timestep " + str(_))
