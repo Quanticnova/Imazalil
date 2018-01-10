@@ -1,10 +1,10 @@
 Grid:
-    NX: 300  # number of X gridcells
-    NY: 300  # number of Y gridcells
+    NX: 100  # number of X gridcells
+    NY: 100  # number of Y gridcells
     ResRate: 0.5  # rate of resource regrowing
 
 Sim:
-    NEpoch: 10  # number of epochs the simulation should run
+    NEpoch: 1000  # number of epochs the simulation should run
     RhoPred: 0.2  # density of predators
     RhoPrey: 0.215  # density of preys
 
