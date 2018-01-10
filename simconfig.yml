@@ -1,6 +1,6 @@
 Grid:
-    NX: 100  # number of X gridcells
-    NY: 100  # number of Y gridcells
+    NX: 256  # number of X gridcells
+    NY: 256  # number of Y gridcells
     ResRate: 0.5  # rate of resource regrowing
 
 Sim:
@@ -9,7 +9,7 @@ Sim:
     RhoPrey: 0.215  # density of preys
 
 Prey:
-    Pflee: 0.5  # probability to flee
+    Pflee: 0.4  # probability to flee
     Pbreed: 0.2  # prob to mate
     #Rules: "NN"  # using neural network rules
     Rules: "default"  #using default prey rules
