@@ -5,3 +5,4 @@ plots/*
 simconfig.yml
 _testing/*
 IT.py
+sims/*/plots/*
