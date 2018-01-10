@@ -120,7 +120,7 @@ class Agent:
         #nbh = self.get_Nbh(gridObject)  # find neighbouring cells
         #currentPos = gridObject.get_currentPositions(agentsdict)  # get current positions of all agents
         #nbhAgents = [c for c in nbh if c in currentPos[1]]  # find agents in neighbourhood of said agent
-        possibleMove = nbh[:]  # copy of neighbourhood for better understanding
+        possibleMove = Nbh[:]  # copy of neighbourhood for better understanding
         
         #if(self.get_kin() is not None):
         for n in NbhAgents:
@@ -150,10 +150,14 @@ class Agent:
             #currentPos = gridObject.get_currentPositions(agentsdict)
             #nbhAgents = [c for c in nbh if c in currentPos[1]]
             if(len(NbhAgents) > 1):  # if neighbours contain more than the central agent 
+                ridx = []  # initialze list of indices to remove from NbhAgents list 
                 for n in NbhAgents:
                     idx = currentPos[1].index(n)
-                    if(currentPos[2][idx] is "Pred" or currentPos[2][idx] is not None):
-                        NbhAgents.remove(n)  # remove all predator agents in the neighbourhood
+                    if(currentPos[2][idx] is "Pred" or currentPos[2][idx] is None):
+                        ridx.append(n)  # append all indices to remove
+                
+                for i in ridx:
+                    NbhAgents.remove(i)  # remove all predator agents in the neighbourhood
                 
                 if(len(NbhAgents)):
                     foodpos = rd.choice(NbhAgents)
@@ -169,7 +173,6 @@ class Agent:
                     self.Move(Nbh, NbhAgents)
             else:
                 pass # if only one Agent is in the neighbourhood, it's the 
-    # TODO: fix the problenm with scatter
     # TODO: fix the code above; too complicated and redundant 
     # TODO: write a function for increasing/decreasing the food reserve 
     # TODO: maybe introduce a sorting for the list -> speed improvement? 
@@ -206,7 +209,7 @@ class Predator(Agent):
     This class is derived from the Agent class.
     """
 
-    def __init__(self, agentsdict, FoodReserve, GridPos, GenCounter=0, MaxFoodReserve=None, pBreed=0.3):
+    def __init__(self, agentsdict, FoodReserve, GridPos, GenCounter=0, MaxFoodReserve=None, pBreed=0.2):
         super().__init__(agentsdict, FoodReserve, GridPos, GenCounter, MaxFoodReserve, pBreed)
         self._kin = "Pred"
 

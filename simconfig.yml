@@ -4,19 +4,19 @@ Grid:
     ResRate: 0.5  # rate of resource regrowing
 
 Sim:
-    NEpoch: 1000  # number of epochs the simulation should run
+    NEpoch: 100  # number of epochs the simulation should run
     RhoPred: 0.2  # density of predators
     RhoPrey: 0.215  # density of preys
 
 Prey:
-    Pflee: 0.25  # probability to flee
-    Pmate: 0.4  # prob to mate
+    Pflee: 0.5  # probability to flee
+    Pbreed: 0.2  # prob to mate
     #Rules: "NN"  # using neural network rules
     Rules: "default"  #using default prey rules
     Score: -1  # this should be more precise, but not possible atm
 
 Pred:
-    Pmate: 0.5  # prob to mate
+    Pbreed: 0.2  # prob to mate
     #Rules: "NN"  # using neural network rules
     Rules: "default"  # using default predator rules
     Score: -1  # this should be more precise, but not possible atm

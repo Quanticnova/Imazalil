@@ -38,6 +38,11 @@ num_agents = npred + nprey
 # initialize starting positinos for agents
 ipos = grid.initialPositions(num_agents)
 
+# init constants
+pFlee = cfg['Prey']['Pflee']
+pBreedPrey = cfg['Prey']['Pbreed']
+pBreedPred = cfg['Pred']['Pbreed']
+
 # init preds
 for _ in range(npred):
     abm.Predator(Agents, food_res, ipos[_], MaxFoodReserve=8)
@@ -45,6 +50,7 @@ for _ in range(npred):
 # init preys
 for _ in range(npred, num_agents):
     abm.Prey(Agents, food_res, ipos[_], MaxFoodReserve=8)
+
 
 ################# actual simulation below here ##############################
 
@@ -66,7 +72,9 @@ if(__name__ == '__main__'):
                 if(roll < a.get_pBreed()):
                     a.createOffspring(grid, Agents, newborn)
                 else:
-                    a.Eat(grid, Nbh, NbhAgents, currentPos, Agents)
+                    roll = np.random.rand()
+                    if(roll > pFlee): 
+                        a.Eat(grid, Nbh, NbhAgents, currentPos, Agents)
         abm.lifecycle(grid, Agents, newborn)  # cleanup all the dead Agents
 
         fig, ax = vis.show_agents(grid, Agents, savefig=True, title="timestep " + str(_))
