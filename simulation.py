@@ -9,8 +9,6 @@ import datetime as dt
 with open("simconfig.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
 
-#print(cfg['Sim']['Pmate']['Pred'])
-
 Agents = dict() # initialize empty agent dictionary
 newborn = dict() # initialize empty newborn dictionary
 
@@ -59,8 +57,8 @@ if(__name__ == '__main__'):
     fig, ax = vis.show_agents(grid, Agents, savefig=True, title="Init")
     plt.close(fig)
     for _ in range(cfg['Sim']['NEpoch']):
-        now = str(dt.datetime.now()).split(" ")[1].split(".")[0]
-        print("::: Step: ", _, " -- ", now)
+        start = dt.datetime.now().replace(microsecond=0)  
+        print("::: Step: ", _)
         print(":::: Mean food reserve: ", vis.mean_food(Agents))
         agentkeys = list(Agents.keys())
         np.random.shuffle(agentkeys)
@@ -79,4 +77,5 @@ if(__name__ == '__main__'):
 
         fig, ax = vis.show_agents(grid, Agents, savefig=True, title="timestep " + str(_))
         plt.close(fig)
+        print("::: Elapsed time: ", dt.datetime.now().replace(microsecond=0) - start)  
     print(":: Simulation stop", dt.datetime.now())
