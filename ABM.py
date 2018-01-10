@@ -141,7 +141,7 @@ class Agent:
             self._FoodReserve -= 1
         
         if(self._kin is "Prey" and self._FoodReserve < MaxFoodReserve - 1):
-            self._FoodReserve += 2
+            self._FoodReserve += 3
             if(self._FoodReserve > MaxFoodReserve):
                 self._FoodReserve = MaxFoodReserve
         
@@ -169,7 +169,7 @@ class Agent:
                         food_idx = currentPos[1].index(foodpos)  # index of prey to be eaten in list of current agent pos
                         agentsdict[currentPos[0][food_idx]]._kin = None  # set kin type to None for later cleanup
                         self._GridPosX, self._GridPosY = foodpos  # move pred to preys position
-                        self._FoodReserve += 2  # actual eating 
+                        self._FoodReserve += 3  # actual eating 
                         if(self._FoodReserve > MaxFoodReserve):
                             self._FoodReserve = MaxFoodReserve
                         
@@ -337,7 +337,8 @@ def lifecycle(gridObject, agentsdict, newborndict):
     for newID, newagent in newborndict.items():
         if newagent.get_cgp() not in agentpos[1]:
             agentsdict[newID] = newagent
-        
+            agentpos[1].append(newagent.get_cgp())
+
         else:
             pass
             #maybe I should to something about that. TODO? 
