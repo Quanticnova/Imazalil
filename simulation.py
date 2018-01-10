@@ -38,6 +38,11 @@ num_agents = npred + nprey
 # initialize starting positinos for agents
 ipos = grid.initialPositions(num_agents)
 
+# init constants
+pFlee = cfg['Prey']['Pflee']
+pBreedPrey = cfg['Prey']['Pbreed']
+pBreedPred = cfg['Pred']['Pbreed']
+
 # init preds
 for _ in range(npred):
     abm.Predator(Agents, food_res, ipos[_], MaxFoodReserve=8)
@@ -45,7 +50,6 @@ for _ in range(npred):
 # init preys
 for _ in range(npred, num_agents):
     abm.Prey(Agents, food_res, ipos[_], MaxFoodReserve=8)
-pFlee = cfg['Prey']['Pflee']
 
 
 ################# actual simulation below here ##############################

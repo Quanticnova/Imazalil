@@ -209,7 +209,7 @@ class Predator(Agent):
     This class is derived from the Agent class.
     """
 
-    def __init__(self, agentsdict, FoodReserve, GridPos, GenCounter=0, MaxFoodReserve=None, pBreed=0.3):
+    def __init__(self, agentsdict, FoodReserve, GridPos, GenCounter=0, MaxFoodReserve=None, pBreed=0.2):
         super().__init__(agentsdict, FoodReserve, GridPos, GenCounter, MaxFoodReserve, pBreed)
         self._kin = "Pred"
 
