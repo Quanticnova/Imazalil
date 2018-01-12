@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import uuid 
 
+np.random.seed(123456789)
+
 class Agent:
     """
     This class provides stuff for more stuff to be stuffed. 
@@ -82,7 +84,6 @@ class Grid:
             self._grid[_] = p.get_ID()
             self._preddict[p.get_ID()] = p
 
-        
     def get_Nbh(self, index):
         # 9 neighbourhood
         y,x = index 
@@ -99,15 +100,16 @@ class Grid:
         return idx_nbh, nbh
 
     def Move(self, index):
-        idx_nbh, nbh = self.get_Nbh(index):
+        y, x = index 
+        idx_nbh, nbh = self.get_Nbh(index)
         possibleMoves = []
         for i, n in zip(idx_nbh, nbh):
             if(n == ""):
                 possibleMoves.append(i)
 
-        roll = possibleMoves[np.random.choice(range(len(possibleMoves)))]
-        self._grid[roll] = self._grid[index]
-        self._grid[index] = ""
+        j, i = possibleMoves[np.random.choice(range(len(possibleMoves)))]
+        self._grid[j,i] = self._grid[y,x]
+        self._grid[y,x] = ""
         
 
     def plot(self, title='', figsize=(9,9), colourbar=True, ticks=False, filepath='plots/', filename='', dpi=300, fmt='png'):
