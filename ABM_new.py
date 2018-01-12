@@ -99,18 +99,34 @@ class Grid:
         
         return idx_nbh, nbh
 
+    def Die(self, index):
+        """
+        If an Agent dies, remove it from the grid-array and from the corresponding dictionary.
+        """
+        x, y = index
+        ID = self._grid[y,x]
+        self._grid[y,x] = ""  # clear the place in the array
+        if(ID[0] == "B"):
+            del self._preydict[ID]
+        else:
+            del self._preddict[ID]
+    
     def Move(self, index):
-        y, x = index 
-        idx_nbh, nbh = self.get_Nbh(index)
-        possibleMoves = []
-        for i, n in zip(idx_nbh, nbh):
-            if(n == ""):
-                possibleMoves.append(i)
-
-        j, i = possibleMoves[np.random.choice(range(len(possibleMoves)))]
-        self._grid[j,i] = self._grid[y,x]
-        self._grid[y,x] = ""
+        y, x = index
+        if(self._grid[y,x] is not ""):
+            idx_nbh, nbh = self.get_Nbh(index)
+            possibleMoves = []
+            for i, n in zip(idx_nbh, nbh):
+                if(n == ""):
+                    possibleMoves.append(i)
+            if(len(possibleMoves)):
+                j, i = possibleMoves[np.random.choice(range(len(possibleMoves)))]
+                self._grid[j,i] = self._grid[y,x]
+                self._grid[y,x] = ""
         
+    def Eat(self, index):
+        pass 
+
 
     def plot(self, title='', figsize=(9,9), colourbar=True, ticks=False, filepath='plots/', filename='', dpi=300, fmt='png'):
         # the code below assumes, that self._grid is a numpy array of strings.
@@ -142,7 +158,7 @@ class Grid:
             ax.set_title(title)
 
         if(len(filepath)):
-            save = filepath + filename
+            save = filepath + filename + "." + fmt 
             fig.savefig(save, dpi=dpi, format=fmt)
 
         if(colourbar):
