@@ -30,6 +30,25 @@ class Agent:
         """
         return self._Generation
 
+    def get_fr(self):
+        """
+        Getter function for the food reserve.
+        """
+        return self._FoodReserve
+
+    def set_fr(self, value):
+        """
+        Setter function for the food reserve
+        """
+        self._FoodReserve = value  
+    
+    def get_maxfr(self):
+        """
+        Getter function for the maximum food reserve. 
+        """
+        return self._MaxFoodReserve 
+
+
 class Prey(Agent):
     """
     This class is derived from the Agent class.
@@ -103,31 +122,92 @@ class Grid:
         """
         If an Agent dies, remove it from the grid-array and from the corresponding dictionary.
         """
-        x, y = index
+        y, x = index
         ID = self._grid[y,x]
-        self._grid[y,x] = ""  # clear the place in the array
         if(ID[0] == "B"):
             del self._preydict[ID]
         else:
             del self._preddict[ID]
-    
-    def Move(self, index):
+        self._grid[y,x] = ""  # clear the place in the array
+
+    def Move(self, index, direction=None):
         y, x = index
-        if(self._grid[y,x] is not ""):
-            idx_nbh, nbh = self.get_Nbh(index)
-            possibleMoves = []
-            for i, n in zip(idx_nbh, nbh):
-                if(n == ""):
-                    possibleMoves.append(i)
-            if(len(possibleMoves)):
-                j, i = possibleMoves[np.random.choice(range(len(possibleMoves)))]
-                self._grid[j,i] = self._grid[y,x]
-                self._grid[y,x] = ""
+        if(direction):
+            j, i = direction 
+            self._grid[j,i] = self._grid[y,x]
+            self._grid[y,x] = "" 
         
-    def Eat(self, index):
-        pass 
+        else:
+            if(self._grid[y,x] is not ""):  # if not empty, then move 
+                idx_nbh, nbh = self.get_Nbh(index)
+                possibleMoves = []
+                for i, n in zip(idx_nbh, nbh):
+                    if(n == ""):
+                        possibleMoves.append(i)
+                if(len(possibleMoves)):
+                    j, i = possibleMoves[np.random.choice(range(len(possibleMoves)))]
+                    self._grid[j,i] = self._grid[y,x]
+                    self._grid[y,x] = ""
+        
+    def Eat(self, index, agent, pFlee):
+        y, x = index 
+        idx_nbh, nbh = self.get_Nbh(index)
+        preys = []
+        for i,n in zip(idx_nbh, nbh):
+            if(len(n)):
+                if n[0] == "B":
+                    preys.append(n)
+
+        if(len(preys)):
+            roll = np.random.rand() 
+            if(roll > pFlee):
+                food = preys[np.random.choice(len(preys))]
+                foodidx = idx_nbh[nbh.index(food)]
+                fr_update(agent)
+                self.Die(foodidx)
+                self.Move(index, foodidx)
+        else:
+            self.Move(self, index)
 
 
+    def fr_update(self, agent):
+        fr = agent.get_fr() 
+        agent.set_fr(fr + 2)  # TODO make this optional! 
+        if(agent.get_fr() > agent.get_maxfr()):
+            agent.set_fr(agent.get_maxfr())
+
+
+    def TakeAction(self, index, pBreed, pFlee):  #TODO  pBreed, pFlee as attributes in agent class? 
+        y, x = index
+        if(self._grid[y,x] != ""):
+            ID = self._grid[y,x]
+            #print(ID)
+            # get agent object 
+            if(ID[0] == "B"):  
+                agent = self._preydict[ID]
+                
+            else:
+                agent = self._preddict[ID]
+                
+            fr = agent.get_fr()
+            # if food reserve is too low, the agent dies 
+            if(fr -1 == 0):
+                self.Die(index)
+            else:
+                agent.set_fr(fr-1)  # decrease the foodreserve by 1 
+                if(ID[0] == "B"):
+                    self.fr_update(agent)  # food reserve update 
+                
+                else:
+                    pass # TODO Eating for predators ! 
+
+                roll = np.random.rand()  # pick a random number 
+                if(roll<=pBreed):  # if pick succesfull, breed.
+                    pass # TODO: Breeding   
+                elif(ID[0] == "B"):
+                    self.Move(index)  # otherwise, take a step in a random direction, if possible 
+
+                
     def plot(self, title='', figsize=(9,9), colourbar=True, ticks=False, filepath='plots/', filename='', dpi=300, fmt='png'):
         # the code below assumes, that self._grid is a numpy array of strings.
         plotarr = np.zeros(shape=(self._height, self._width))
