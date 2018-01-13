@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import uuid
 import datetime as dt 
 
-np.random.seed(123456789)
 
 class Agent:
     """
