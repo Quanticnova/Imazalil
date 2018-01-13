@@ -285,6 +285,8 @@ class Grid:
 
             axd.plot(x, Rhoprey, color='#fde725', ls='-', label='Prey')
             axd.plot(x, Rhopred, color='#440154', ls='-', label='Predator')
+            axd.set_ylabel('Agent density')
+            axd.set_xlabel('Timesteps')
             axd.set_xlim([0,timesteps])
             axd.set_ylim([0,1])
             axd.legend(loc=2)
