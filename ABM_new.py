@@ -283,8 +283,8 @@ class Grid:
             #fig.tight_layout()
             fig.subplots_adjust(hspace=0.1)
 
-            axd.plot(x, Rhoprey, 'r-', label='Prey')
-            axd.plot(x, Rhopred, 'b-', label='Predator')
+            axd.plot(x, Rhoprey, color='#fde725', ls='-', label='Prey')
+            axd.plot(x, Rhopred, color='#440154', ls='-', label='Predator')
             axd.set_xlim([0,timesteps])
             axd.set_ylim([0,1])
             axd.legend(loc=2)
@@ -293,7 +293,7 @@ class Grid:
             fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111)
         
-        im = ax.imshow(plotarr, cmap='seismic', vmin=-1, vmax=1)
+        im = ax.imshow(plotarr, cmap='viridis', vmin=-1, vmax=1)
 
         if(colourbar):
             cbar = plt.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01, 
