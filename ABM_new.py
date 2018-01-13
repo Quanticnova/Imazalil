@@ -2,7 +2,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import uuid 
+import uuid
+import datetime as dt 
 
 np.random.seed(123456789)
 
@@ -167,50 +168,56 @@ class Grid:
                 self.Die(foodidx)
                 self.Move(index, foodidx)
         else:
-            self.Move(self, index)
+            self.Move(index)
 
 
-    def createOffspring(self, index, foodresPrey, foodresPred, MaxFoodReservePrey, MaxFoodReservePred,  pBreedPrey, pBreedPred):
+    def createOffspring(self, agent, kin, index, foodresPrey, foodresPred, MaxFoodReservePrey, MaxFoodReservePred,  pBreedPrey, pBreedPred):
         y, x = index
         idx_nbh, nbh = self.get_Nbh(index)
-        ID = self._grid[y,x]
-        if(ID[0] == "B"):
-            agent = self._preydict[ID]
-        else:
-            agent = self._preddict[ID]
+        #ID = self._grid[y,x]
+        #if(ID[0] == "B"):
+        #    agent = self._preydict[ID]
+        #else:
+        #    agent = self._preddict[ID]
         
-        agent.set_fr(agent.get_fr() - 3) # reduce foodreserve 
         possibleMoves = []
-        for n in nbh:
+        for i, n in zip(idx_nbh, nbh):
             if(n == ""):
-                possibleMoves.append(n)
-        if(len(possibleMoves)):
-            j, i = possibleMoves[np.random.choice(len(possibleMoves))]
-            if(ID[0] == "B"):
+                possibleMoves.append(i)
+
+        if(len(possibleMoves) > 0):
+            k, j = possibleMoves[np.random.choice(len(possibleMoves))]
+            agent.set_fr(agent.get_fr() - 3) # reduce foodreserve 
+            if(kin == "B"):
                 p = Prey(FoodReserve=foodresPrey, MaxFoodReserve=MaxFoodReservePrey, pBreed=pBreedPrey)
-                self._grid[j,i] = p.get_ID() 
-                self._preydict[p.get_ID()] = p 
+                self._grid[k,j] = p.get_ID() 
+                self._preydict[p.get_ID()] = p
+                #print('*' + p.get_ID())
             else:
-                p = Prey(FoodReserve=foodresPred, MaxFoodReserve=MaxFoodReservePred, pBreed=pBreedPrey)
-                self._grid[j,i] = p.get_ID() 
+                p = Predator(FoodReserve=foodresPred, MaxFoodReserve=MaxFoodReservePred, pBreed=pBreedPred)
+                self._grid[k,j] = p.get_ID() 
                 self._preddict[p.get_ID()] = p
+                #print('*' + p.get_ID())
                 
-    
+        else: 
+            pass
+
     def fr_update(self, agent):
         fr = agent.get_fr() 
-        agent.set_fr(fr + 2)  # TODO make this optional! 
+        agent.set_fr(fr + 3)  # TODO make this optional! 
         if(agent.get_fr() > agent.get_maxfr()):
             agent.set_fr(agent.get_maxfr())
 
 
     def TakeAction(self, index, pFlee, foodresPrey, foodresPred, MaxFoodReservePrey, MaxFoodReservePred, pBreedPrey, pBreedPred):  
         #TODO  pBreed, pFlee as attributes in agent class? 
-        y, x = index
-        if(self._grid[y,x] != ""):
-            ID = self._grid[y,x]
-            #print(ID)
+        y, x = index  # for given index, get array indices 
+        
+        if(len(self._grid[y,x])):  # if picked index is not empty
+            ID = self._grid[y,x]  # extract ID 
+            kin = ID[0]  # extract kintype 
             # get agent object 
-            if(ID[0] == "B"):  
+            if(kin == "B"):  
                 agent = self._preydict[ID]
                 pBreed = pBreedPrey 
                 
@@ -220,11 +227,12 @@ class Grid:
                 
             fr = agent.get_fr()
             # if food reserve is too low, the agent dies 
-            if(fr -1 == 0):
+            if(fr -1 <= 0):
                 self.Die(index)
+            
             else:
                 agent.set_fr(fr-1)  # decrease the foodreserve by 1 
-                if(ID[0] == "B"):
+                if(kin == "B"):
                     self.fr_update(agent)  # food reserve update 
                 
                 else:
@@ -234,13 +242,13 @@ class Grid:
                 if(agent.get_fr() > agent.get_maxfr()//2): # if foodreserve is more than half the maximum 
                     roll = np.random.rand()  # pick a random number 
                     if(roll<=pBreed):  # if pick succesfull, breed.
-                        self.createOffspring(index, foodresPrey, foodresPred, MaxFoodReservePrey, MaxFoodReservePred,  
-                            pBreedPrey, pBreedPred) # Breeding
+                        self.createOffspring(agent, kin, index, foodresPrey, foodresPred, MaxFoodReservePrey, MaxFoodReservePred, pBreedPrey, pBreedPred) # Breeding
                 # TODO something here seems to be faulty, better check tomorrow... 
                 
                 if(ID[0] == "B"):
                     self.Move(index)  # otherwise, take a step in a random direction, if possible 
-        
+        else: 
+            pass 
                 
     def plot(self, title='', figsize=(9,9), colourbar=True, ticks=False, filepath='plots/', filename='', dpi=300, fmt='png'):
         # the code below assumes, that self._grid is a numpy array of strings.
@@ -257,19 +265,22 @@ class Grid:
         
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
-        im = ax.imshow(plotarr, cmap='seismic')
+        im = ax.imshow(plotarr, cmap='seismic', vmin=-1, vmax=1)
 
         if(colourbar):
-            cbar = plt.colorbar(mappable=im, ax=ax, label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$', boundaries=[-1,1])
+            cbar = plt.colorbar(mappable=im, ax=ax, label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
 
         if(not ticks):
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             ax.set_xticks([])
             ax.set_yticks([])
-
+        
+        info = " Prey: " + str(len(self._preydict)) + ", Pred: " + str(len(self._preddict))
+        
         if(len(title)):
-            ax.set_title(title)
+            title = title + info 
+        ax.set_title(title)
 
         if(len(filepath)):
             save = filepath + filename + "." + fmt 
@@ -279,7 +290,9 @@ class Grid:
             return fig, ax, cbar
 
         return fig, ax
-
+    
+    def timestamp(self):
+        return str(dt.datetime.now())
             
 
 
