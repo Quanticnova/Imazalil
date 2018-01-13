@@ -1,4 +1,4 @@
-import ABM_new as abm
+import ABM as abm
 import numpy as np
 import matplotlib.pyplot as plt 
 import yaml
