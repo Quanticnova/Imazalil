@@ -48,7 +48,7 @@ class Agent:
         Getter function for the maximum food reserve. 
         """
         return self._MaxFoodReserve 
-
+   
 
 class Prey(Agent):
     """
@@ -103,6 +103,15 @@ class Grid:
             p = Predator(FoodReserve=foodresPred, MaxFoodReserve=MaxFoodReservePred, pBreed=pBreedPred)
             self._grid[_] = p.get_ID()
             self._preddict[p.get_ID()] = p
+
+    def get_num_prey(self):
+        return len(self._preydict)
+
+    def get_num_pred(self):
+        return len(self._preddict)
+ 
+    def get_max_pop(self):
+        return self._width * self._height
 
     def get_Nbh(self, index):
         # 9 neighbourhood
@@ -243,14 +252,13 @@ class Grid:
                     roll = np.random.rand()  # pick a random number 
                     if(roll<=pBreed):  # if pick succesfull, breed.
                         self.createOffspring(agent, kin, index, foodresPrey, foodresPred, MaxFoodReservePrey, MaxFoodReservePred, pBreedPrey, pBreedPred) # Breeding
-                # TODO something here seems to be faulty, better check tomorrow... 
                 
-                if(ID[0] == "B"):
+                if(kin == "B"):
                     self.Move(index)  # otherwise, take a step in a random direction, if possible 
         else: 
             pass 
                 
-    def plot(self, title='', figsize=(9,9), colourbar=True, ticks=False, filepath='plots/', filename='', dpi=300, fmt='png'):
+    def plot(self, densities=None, currenttimestep=None, timesteps=1000, title='', figsize=(9,12), colourbar=True, ticks=False, filepath='plots/', filename='', dpi=300, fmt='png'):
         # the code below assumes, that self._grid is a numpy array of strings.
         plotarr = np.zeros(shape=(self._height, self._width))
         
@@ -262,14 +270,36 @@ class Grid:
                     else:
                         plotarr[j,i] = -1
                     
+        if(densities):
+            prey, pred = densities
+            maxpop = self.get_max_pop()
+            Rhoprey = np.array(prey)/maxpop 
+            Rhopred = np.array(pred)/maxpop 
+            x = np.arange(currenttimestep+2)  # +1 because there is the initial datapoint and because range starts at 0
+            fig, (ax, axd) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3,1]}) # figure setup
+            w, h = figsize 
+            fig.set_figheight(h)
+            fig.set_figwidth(w)
+            #fig.tight_layout()
+            fig.subplots_adjust(hspace=0.1)
+
+            axd.plot(x, Rhoprey, 'r-', label='Prey')
+            axd.plot(x, Rhopred, 'b-', label='Predator')
+            axd.set_xlim([0,timesteps])
+            axd.set_ylim([0,1])
+            axd.legend(loc=2)
+
+        else:
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(111)
         
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111)
         im = ax.imshow(plotarr, cmap='seismic', vmin=-1, vmax=1)
 
         if(colourbar):
-            cbar = plt.colorbar(mappable=im, ax=ax, label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
+            cbar = plt.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01, 
+                                label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
 
+       
         if(not ticks):
             ax.set_xticklabels([])
             ax.set_yticklabels([])
