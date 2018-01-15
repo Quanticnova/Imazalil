@@ -5,3 +5,4 @@ plots/*
 _testing/*
 IT.py
 sims/*/plots/*
+sims/*/*/plots/*
