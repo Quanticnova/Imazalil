@@ -153,7 +153,7 @@ class Grid:
     def _populate(self, rhoprey, rhopred, foodresPrey, foodresPred, MaxFoodReservePrey,
                   MaxFoodReservePred, pBreedPrey, pBreedPred, pFlee):
         """
-        Popuate the empty grid!
+        Populate the empty grid!
         """
         Nprey = int(rhoprey * self._maxPop)  # number of prey
         Npred = int(rhopred * self._maxPop)  # number of pred
@@ -320,7 +320,6 @@ class Grid:
 
 
     def TakeAction(self, index, foodresPrey, foodresPred):
-        #TODO  pBreed, pFlee as attributes in agent class?
         y, x = index  # for given index, get array indices
 
         if(len(self._grid[y,x])):  # if picked index is not empty
@@ -369,14 +368,6 @@ class Grid:
                 plotarr[j,i] = 1
             else:
                 plotarr[j,i] = -1
-
-        #for j in range(self._height):
-        #    for i in range(self._width):
-        #        if(len(self._grid[j,i])):
-        #            if(self._grid[j,i][0] == "B"):
-        #                plotarr[j,i] = 1
-        #            else:
-        #                plotarr[j,i] = -1
 
         if(densities):
             prey, pred = densities

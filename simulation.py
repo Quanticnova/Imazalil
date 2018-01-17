@@ -11,8 +11,6 @@ with open("simconfig.yml", 'r') as ymlfile:
 # fixed random seed for reproducability
 np.random.seed(123456789)
 
-#N = 256
-
 # Sim setup
 w = cfg['Grid']['NX']
 h = cfg['Grid']['NY']
