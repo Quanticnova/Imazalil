@@ -390,7 +390,7 @@ class Grid:
             axd.set_xlabel('Timesteps')
             axd.set_xlim([0,timesteps])
             axd.set_ylim([0,1])
-            axd.legend(loc=2)
+            axd.legend(loc=1)
 
         else:
             fig = plt.figure(figsize=figsize)
