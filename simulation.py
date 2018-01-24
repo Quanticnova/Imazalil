@@ -16,6 +16,7 @@ w = cfg['Grid']['NX']
 h = cfg['Grid']['NY']
 rhoprey = cfg['Sim']['RhoPrey']
 rhopred = cfg['Sim']['RhoPred']
+ff = cfg['Sim']['FastForward']
 
 pFlee = cfg['Prey']['Pflee']
 pBreedPrey = cfg['Prey']['Pbreed']
@@ -53,6 +54,9 @@ ts = cfg['Sim']['Timesteps']  # timesteps
 nprey = []
 npred = []
 
+# initialize empty step counter
+stepcnt=0
+
 # append the first values
 nprey.append(grid.get_num_prey())
 npred.append(grid.get_num_pred())
@@ -67,6 +71,7 @@ if(__name__ == '__main__'):
     plt.close(fig)
     # actual simulation
     for _ in range(ts):
+        stepcnt+=1
         start = dt.datetime.now()
         _y, _x = np.where(grid.get_grid() != '')  # indices of agents
         idc = np.array([_y, _x]).T
@@ -83,8 +88,11 @@ if(__name__ == '__main__'):
         print(":: Step ", _, " | Elapsed time: ", dt.datetime.now() - start)
         nprey.append(grid.get_num_prey())
         npred.append(grid.get_num_pred())
-        fig, ax, cbar = grid.plot(densities=[nprey, npred], currenttimestep=_, timesteps=ts, dpi=DPI,
-                                  filepath=filepath, filename=grid.timestamp() + "_" + str(_ + 1),
-                                  title='Step ' + str(_) + ', ', fmt=fmt, figsize=figsize)
-        plt.close()
+        if(stepcnt >= ff):
+            fig, ax, cbar = grid.plot(densities=[nprey, npred], currenttimestep=_, timesteps=ts,
+                                      dpi=DPI, filepath=filepath,
+                                      filename=grid.timestamp() + "_" + str(_ + 1),
+                                      title='Step ' + str(_) + ', ', fmt=fmt, figsize=figsize)
+            plt.close()
+            stepcnt=0  # reset counter
     print(": Simulation stop", dt.datetime.now())

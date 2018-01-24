@@ -4,6 +4,7 @@ Grid:
     ResRate: 0.5  # rate of resource regrowing
 
 Sim:
+    FastForward: 10 # plot just every nth time step 
     NEpoch: 200  # number of epochs the simulation should run
     Timesteps: 1000  # number of timesteps per epoch
     RhoPred: 0.2  # density of predators
@@ -28,6 +29,6 @@ Pred:
 
 Plots:
     filepath: "plots/"
-    figsize: !!python/tuple [9,12]  # important to tell python that this is a tuple 
+    figsize: !!python/tuple [9,12]  # important to tell python that this is a tuple
     format: 'png'
     DPI: 300
