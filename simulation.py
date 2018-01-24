@@ -69,6 +69,7 @@ if(__name__ == '__main__'):
                                 filepath=filepath, filename=grid.timestamp()+"_0", title='init',
                                 fmt=fmt, figsize=figsize)
     plt.close(fig)
+    inittime = dt.datetime.now()
     # actual simulation
     for _ in range(ts):
         stepcnt+=1
@@ -95,4 +96,6 @@ if(__name__ == '__main__'):
                                       title='Step ' + str(_) + ', ', fmt=fmt, figsize=figsize)
             plt.close()
             stepcnt=0  # reset counter
-    print(": Simulation stop", dt.datetime.now())
+    stoptime = dt.datetime.now()
+    print(": Simulation stop", stoptime)
+    print(": Total Runtime: ", stoptime - inittime)
