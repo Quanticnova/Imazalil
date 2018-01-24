@@ -370,11 +370,7 @@ class Grid:
                 plotarr[j,i] = -1
 
         if(densities):
-            prey, pred = densities
-            maxpop = self.get_max_pop()
-            Rhoprey = np.array(prey)/maxpop
-            Rhopred = np.array(pred)/maxpop
-            x = np.arange(currenttimestep+2)  # +1 because there is the initial datapoint and because range starts at 0
+            densities = list(densities)  # ensure type
 
             # figure setup
             fig, (ax, axd) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3,1]})
@@ -383,9 +379,20 @@ class Grid:
             fig.set_figwidth(w)
             fig.subplots_adjust(hspace=0.1)
 
-            # density plots setup
-            axd.plot(x, Rhoprey, color='#fde725', ls='-', label='Prey')
-            axd.plot(x, Rhopred, color='#440154', ls='-', label='Predator')
+            # normalization and timesteps
+            maxpop = self.get_max_pop()
+            x = np.arange(currenttimestep+2)  # +1 because there is the initial datapoint and because range starts at 0
+
+            # colors and labels
+            colors = ['#fde725', '#440154']
+            labels = ['Prey', 'Predator']
+            # TODO: optional colors and kintypes 
+
+            # plotting
+            for n, d in enumerate(densities):
+                rhod = np.array(d)/maxpop
+                axd.plot(x, rhod, ls='-', color=colors[n], label=labels[n])
+
             axd.set_ylabel('Agent density')
             axd.set_xlabel('Timesteps')
             axd.set_xlim([0,timesteps])
