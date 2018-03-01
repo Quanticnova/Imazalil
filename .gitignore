@@ -1,5 +1,6 @@
 __pycache__/*
 .ipynb_checkpoints/* 
+_testsuite/.ipynb_checkpoints/*
 plots/*
 .DS_Store
 _testing/*
