@@ -9,13 +9,13 @@ def generate_uuid(*, species: str=None) -> str:
     If species is either predator or prey a uuid is created, leading with 'J_'
     or 'B_' respectively. If species is None, the uuid has leading '__'.
     """
-    if species is "predator":
+    if species is "Predator":
         uid = "J_" + uuid.uuid4().hex
 
-    elif species is "prey":
+    elif species is "Prey":
         uid = "B_" + uuid.uuid4().hex
 
-    elif not species:
+    elif species is "Agent":
         uid = "__" + uuid.uuid4().hex
 
     else:
