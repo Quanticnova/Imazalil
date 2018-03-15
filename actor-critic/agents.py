@@ -20,25 +20,32 @@ class Agent:
     """
 
     # slots -------------------------------------------------------------------
-    __slots__ = ['_food_reserve', '_max_food_reserve', '_generation', '_uuid'
-                 '_UUID_LENGTH']
+    __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
+                 '_p_breed', '_uuid', '_UUID_LENGTH']
 
     # class constants
-    _UUID_LENGTH = 34  # len(uuid) + 2
+    _UUID_LENGTH = 34  # FIXME: no hardcoded values!
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, **kwargs):
+                 generation: int=None, p_breed: float=1, **kwargs):
         """Initialise the agent instance."""
         # Initialize values
         self._food_reserve = 0
         self._max_food_reserve = None
         self._generation = None
         self._uuid = None
+        self._p_breed = 1
 
         # Set property managed attributes
         self.food_reserve = food_reserve
-        self.max_food_reserve = max_food_reserve
+        self.p_breed = p_breed
+
+        if not max_food_reserve:
+            self.max_food_reserve = max_food_reserve
+
+        if not generation:
+            self.generation = generation
 
     # Properties --------------------------------------------------------------
     # food_reserve
@@ -131,3 +138,47 @@ class Agent:
 
         else:
             self._uuid = uuid
+
+    # breeding probability
+    @property
+    def p_breed(self) -> float:
+        """The breeding probability of the Agent."""
+        return self._p_breed
+
+    @p_breed.setter
+    def p_breed(self, p_breed: float) -> None:
+        """The breeding probability setter."""
+        if not isinstance(p_breed, float):
+            raise TypeError("p_breed must be of type float, but {} was given."
+                            "".format(type(p_breed)))
+        elif p_breed < 0 or p_breed > 1:
+            raise ValueError("p_breed must be between 0 and 1 but {} was given."
+                             "".format(p_breed))
+
+
+class Predator(Agent):
+    """Predator class derived from Agent.
+
+    This provides:
+        - foo
+        - bar
+        - ...
+    """
+
+    # slots -------------------------------------------------------------------
+    __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
+                 '_uuid', '_UUID_LENGTH', '_p_breed', '_kwargs']
+
+    # init --------------------------------------------------------------------
+    def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
+                 generation: int=None, p_breed: float=1, **kwargs):
+        """Initialise a Predator instance."""
+        super().__init__(food_reserve=food_reserve,
+                         max_food_reserve=max_food_reserve,
+                         generation=generation,
+                         p_breed=p_breed)
+
+        # set the uuid
+        self.uuid = generate_uuid(species=self.__class__.__name__)
+
+    # properties --------------------------------------------------------------
