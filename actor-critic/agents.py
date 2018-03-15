@@ -1,7 +1,5 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
-import numpy as np
-
 from tools import generate_uuid
 
 
@@ -13,7 +11,8 @@ class Agent:
         - food_reserve
         - max_food_reserve
         - generation
-        - ID
+        - uuid
+        - p_breed, the breeding probability
         - .... more to come
 
     Accessing the attributes is done via properties and setter, if necessary.
@@ -21,14 +20,15 @@ class Agent:
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_p_breed', '_uuid', '_UUID_LENGTH']
+                 '_p_breed', '_uuid', '_kin', '_UUID_LENGTH']
 
     # class constants
     _UUID_LENGTH = 34  # FIXME: no hardcoded values!
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1, **kwargs):
+                 generation: int=None, p_breed: float=1, kin: str=None,
+                 **kwargs):
         """Initialise the agent instance."""
         # Initialize values
         self._food_reserve = 0
@@ -36,10 +36,12 @@ class Agent:
         self._generation = None
         self._uuid = None
         self._p_breed = 1
+        self._kin = None
 
         # Set property managed attributes
         self.food_reserve = food_reserve
         self.p_breed = p_breed
+        self.kin = kin
 
         if not max_food_reserve:
             self.max_food_reserve = max_food_reserve
@@ -155,14 +157,35 @@ class Agent:
             raise ValueError("p_breed must be between 0 and 1 but {} was given."
                              "".format(p_breed))
 
+    # kin
+    @property
+    def kin(self) -> str:
+        """Return kin of the agent."""
+        return self._kin
+
+    @kin.setter
+    def kin(self, kin: str) -> None:
+        """The kin setter for the agent."""
+        if not isinstance(kin, str):
+            raise TypeError("kin must be of type str, but {} was given."
+                            "".format(type(kin)))
+        elif self.kin:
+            raise RuntimeError("kin is alreday set and cannot be changed on the"
+                               " fly.")
+
+        else:
+            self._kin = kin
+
+    # staticmethods -----------------------------------------------------------
+    @staticmethod
+    #_generate_uuid():
+    # TODO: move generate_uuid here; think about sensible ways for kin type storage -> plotting etc. 
 
 class Predator(Agent):
     """Predator class derived from Agent.
 
-    This provides:
-        - foo
-        - bar
-        - ...
+    This provides (additionally to class Agent):
+        - specified uuid (leading "J_")
     """
 
     # slots -------------------------------------------------------------------
@@ -176,9 +199,55 @@ class Predator(Agent):
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
                          generation=generation,
-                         p_breed=p_breed)
+                         p_breed=p_breed,
+                         kin=self.__class__.__name__)
 
         # set the uuid
         self.uuid = generate_uuid(species=self.__class__.__name__)
 
-    # properties --------------------------------------------------------------
+
+class Prey(Agent):
+    """Prey class derived from Agent.
+
+    This provides (additionally to class Agent):
+        - specified uuid (leading "B_")
+        - p_flee, the fleeing probability
+    """
+
+    # slots -------------------------------------------------------------------
+    __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
+                 '_uuid', '_UUID_LENGTH', '_p_breed', '_p_flee', '_kwargs']
+
+    # init --------------------------------------------------------------------
+    def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
+                 generation: int=None, p_breed: float=1, p_flee: float=0,
+                 **kwargs):
+        """Initialise a Prey instance."""
+        super().__init__(food_reserve=food_reserve,
+                         max_food_reserve=max_food_reserve,
+                         generation=generation,
+                         p_breed=p_breed)
+
+        # initialise new attributes
+        self._p_flee = 0
+
+        # set new (property managed) attributes
+        self.p_flee = p_flee
+
+        # set the uuid
+        self.uuid = generate_uuid(species=self.__class__.__name__)
+
+    @property
+    def p_flee(self) -> float:
+        """The fleeing probability of the prey."""
+        return self._p_flee
+
+    @p_flee.setter
+    def p_flee(self, p_flee: float) -> None:
+        """The fleeing probability setter."""
+        if not isinstance(p_flee, float):
+            raise TypeError("p_flee must be of type float, but {} was given."
+                            "".format(type(p_flee)))
+        elif p_flee < 0 or p_flee > 1:
+            raise ValueError("p_flee must be between 0 and 1 but {} was given."
+                             "".format(p_flee))

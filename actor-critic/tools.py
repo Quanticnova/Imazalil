@@ -18,6 +18,9 @@ def generate_uuid(*, species: str=None) -> str:
     elif species is "Agent":
         uid = "__" + uuid.uuid4().hex
 
+    elif len(species) is 2 and isinstance(species, str):
+        uid = species + uuid.uuid4().hex
+
     else:
         raise RuntimeError("Unknown species {} given".format(species))
 
