@@ -1,0 +1,12 @@
+agents:
+    - add a (class?)method to return an object, than can easily be stored by
+        some IO function
+
+env:
+    - literally everything
+    - additionally the necessary functions step, reset, .. see gym
+    - use collections.ChainMap to create a single map of the agents -> no
+        need for handling 2 (or more) dictionaries
+    - maybe use queue.Queue for iterating over shuffled agents? How can the
+        order be changed?
+    - agent objects can be stored in dicts
