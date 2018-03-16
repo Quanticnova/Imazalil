@@ -27,7 +27,7 @@ class Agent:
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1, kin: str=None,
+                 generation: int=None, p_breed: float=1., kin: str=None,
                  **kwargs):
         """Initialise the agent instance."""
         # Initialize values
@@ -35,14 +35,19 @@ class Agent:
         self._max_food_reserve = None
         self._generation = None
         self._uuid = None
-        self._p_breed = 1
+        self._p_breed = 1.
         self._kin = None
 
         # Set property managed attributes
         self.food_reserve = food_reserve
         self.p_breed = p_breed
-        self.kin = kin
         self.uuid = self._generate_uuid()
+
+        if kin:  # if kin is given, set kin
+            self.kin = kin
+
+        else:  # otherwise just set 'Agent' as kin
+            self.kin = self.__class__.__name__
 
         if max_food_reserve:
             self.max_food_reserve = max_food_reserve
@@ -50,11 +55,11 @@ class Agent:
         if generation is not None:
             self.generation = generation
 
-    # str method --------------------------------------------------------------
-    def __str__(self):
+    # magic method ------------------------------------------------------------
+    def __str__(self) -> str:
         """Return the agents properties."""
-        props = ("ID: {}\tkin: {}\tgeneration: {}\tfood_reserve: {}\t"
-                 "max_food_reserve: {}".format(self.uuid, self.kin,
+        props = ("kin: {}\tID: {}\tgeneration: {}\tfood_reserve: {}\t"
+                 "max_food_reserve: {}".format(self.kin, self.uuid,
                                                self.generation,
                                                self.food_reserve,
                                                self.max_food_reserve))
@@ -210,9 +215,11 @@ class Predator(Agent):
     # class constants
     _UUID_LENGTH = Agent._UUID_LENGTH
 
-    # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_uuid', '_p_breed', '_kwargs']
+                 '_p_breed', '_uuid', '_kin']
+
+    # slots -------------------------------------------------------------------
+    __slots__ = ['_kwargs']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
@@ -237,8 +244,7 @@ class Prey(Agent):
     _UUID_LENGTH = Agent._UUID_LENGTH
 
     # slots -------------------------------------------------------------------
-    __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_uuid', '_p_breed', '_p_flee', '_kwargs']
+    __slots__ = ['_p_flee', '_kwargs']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
