@@ -1,6 +1,6 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
-from tools import generate_uuid
+import uuid
 
 
 class Agent:
@@ -18,12 +18,12 @@ class Agent:
     Accessing the attributes is done via properties and setter, if necessary.
     """
 
+    # class constants
+    _UUID_LENGTH = len(uuid.uuid4().hex)
+
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_p_breed', '_uuid', '_kin', '_UUID_LENGTH']
-
-    # class constants
-    _UUID_LENGTH = 34  # FIXME: no hardcoded values!
+                 '_p_breed', '_uuid', '_kin']
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
@@ -42,11 +42,12 @@ class Agent:
         self.food_reserve = food_reserve
         self.p_breed = p_breed
         self.kin = kin
+        self.uuid = self._generate_uuid()
 
-        if not max_food_reserve:
+        if max_food_reserve:
             self.max_food_reserve = max_food_reserve
 
-        if not generation:
+        if generation is not None:
             self.generation = generation
 
     # Properties --------------------------------------------------------------
@@ -133,7 +134,7 @@ class Agent:
 
         elif len(uuid) < self._UUID_LENGTH:
             raise ValueError("uuid must be of length {} but given uuid {} has "
-                             "length {}".format(self._UUID_LENGTH, uuid,
+                             "length {}.".format(self._UUID_LENGTH, uuid,
                                                 len(uuid)))
         elif self.uuid:
             raise RuntimeError("uuid is already set.")
@@ -157,6 +158,9 @@ class Agent:
             raise ValueError("p_breed must be between 0 and 1 but {} was given."
                              "".format(p_breed))
 
+        else:
+            self._p_breed = p_breed
+
     # kin
     @property
     def kin(self) -> str:
@@ -178,8 +182,12 @@ class Agent:
 
     # staticmethods -----------------------------------------------------------
     @staticmethod
-    #_generate_uuid():
-    # TODO: move generate_uuid here; think about sensible ways for kin type storage -> plotting etc. 
+    def _generate_uuid():
+        """Generate a uuid for an agent."""
+        return uuid.uuid4().hex
+
+    # TODO: think about sensible ways for kin type storage -> plotting etc.
+
 
 class Predator(Agent):
     """Predator class derived from Agent.
@@ -188,9 +196,12 @@ class Predator(Agent):
         - specified uuid (leading "J_")
     """
 
+    # class constants
+    _UUID_LENGTH = Agent._UUID_LENGTH
+
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_uuid', '_UUID_LENGTH', '_p_breed', '_kwargs']
+                 '_uuid', '_p_breed', '_kwargs']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
@@ -202,9 +213,6 @@ class Predator(Agent):
                          p_breed=p_breed,
                          kin=self.__class__.__name__)
 
-        # set the uuid
-        self.uuid = generate_uuid(species=self.__class__.__name__)
-
 
 class Prey(Agent):
     """Prey class derived from Agent.
@@ -214,9 +222,12 @@ class Prey(Agent):
         - p_flee, the fleeing probability
     """
 
+    # class constants
+    _UUID_LENGTH = Agent._UUID_LENGTH
+
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_uuid', '_UUID_LENGTH', '_p_breed', '_p_flee', '_kwargs']
+                 '_uuid', '_p_breed', '_p_flee', '_kwargs']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
@@ -226,16 +237,14 @@ class Prey(Agent):
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
                          generation=generation,
-                         p_breed=p_breed)
+                         p_breed=p_breed,
+                         kin=self.__class__.__name__)
 
         # initialise new attributes
         self._p_flee = 0
 
         # set new (property managed) attributes
         self.p_flee = p_flee
-
-        # set the uuid
-        self.uuid = generate_uuid(species=self.__class__.__name__)
 
     @property
     def p_flee(self) -> float:
@@ -251,3 +260,6 @@ class Prey(Agent):
         elif p_flee < 0 or p_flee > 1:
             raise ValueError("p_flee must be between 0 and 1 but {} was given."
                              "".format(p_flee))
+
+        else:
+            self._p_flee = p_flee
