@@ -50,6 +50,17 @@ class Agent:
         if generation is not None:
             self.generation = generation
 
+    # str method --------------------------------------------------------------
+    def __str__(self):
+        """Return the agents properties."""
+        props = ("ID: {}\tkin: {}\tgeneration: {}\tfood_reserve: {}\t"
+                 "max_food_reserve: {}".format(self.uuid, self.kin,
+                                               self.generation,
+                                               self.food_reserve,
+                                               self.max_food_reserve))
+
+        return props
+
     # Properties --------------------------------------------------------------
     # food_reserve
     @property
@@ -135,7 +146,7 @@ class Agent:
         elif len(uuid) < self._UUID_LENGTH:
             raise ValueError("uuid must be of length {} but given uuid {} has "
                              "length {}.".format(self._UUID_LENGTH, uuid,
-                                                len(uuid)))
+                                                 len(uuid)))
         elif self.uuid:
             raise RuntimeError("uuid is already set.")
 
@@ -246,6 +257,7 @@ class Prey(Agent):
         # set new (property managed) attributes
         self.p_flee = p_flee
 
+    # properties --------------------------------------------------------------
     @property
     def p_flee(self) -> float:
         """The fleeing probability of the prey."""
