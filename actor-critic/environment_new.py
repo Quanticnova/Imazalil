@@ -4,8 +4,6 @@ import numpy as np
 from collections import ChainMap, namedtuple
 from typing import Union, Callable
 
-from agents import Agent, Predator, Prey
-
 
 class Environment:
     """The environment class.
@@ -15,7 +13,8 @@ class Environment:
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_dim', '_densities', '_agent_types', '_agent_kwargs',
-                 '_max_pop', '_env', '_agents_dict', '_agent_named_properties']
+                 '_max_pop', '_env', '_agents_dict', '_agent_named_properties',
+                 '_agents_tuple']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
@@ -30,7 +29,6 @@ class Environment:
         self._densities = None
         self._agent_kwargs = {}
         self._agent_types = None
-        self._agents_dict = None  # to be set later
 
         # set property managed attribute(s)
         self.dim = dim
@@ -44,13 +42,19 @@ class Environment:
         # get the names of agent types and create named tuple template
         fn  = [at.__name__ for at in self.agent_types]
         self._agent_named_properties = namedtuple('property', fn)
-        for _ in fn:
-            
+
         # store agent_kwargs as attributes
         self.agent_kwargs = agent_kwargs
 
         # calculate maximum population size
         self._max_pop = np.prod(self.dim)
+
+        # create named tuple
+        agnts = namedtuple('agent_types', [a.__name__ for a in
+                           self.agent_types])
+        # initialise with empty dicts
+        self._agents_tuple = agnts(*[{} for _ in self.agent_types])
+        self._agents_dict = ChainMap(*self._agents_tuple)
 
     # properties -------------------------------------------------------------
     # dimensions
@@ -188,8 +192,10 @@ class Grid(Environment):
         # shuffled indices.
         for i, (num, at) in enumerate(zip(num_agents, self.agent_types)):
             for _ in idx[sum(num_agents[:i]) : sum(num_agents[:i+1])]:
+                name = at.__name__
                 a = at(**self.agent_kwargs)  # create new agent isinstance
                 self.env[_] = a.uuid  # add the uuid to the environment
+                getattr(self._agents_tuple, name)[a.uuid] = a
 
         self.env = self.env.reshape(self.dim)
 
