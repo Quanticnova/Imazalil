@@ -23,11 +23,11 @@ class Agent:
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_p_breed', '_uuid', '_kin']
+                 '_p_breed', '_uuid', '_kin', '_kwargs']
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1., kin: str=None,
+                 generation: int=None, p_breed: float=1.0, kin: str=None,
                  **kwargs):
         """Initialise the agent instance."""
         # Initialize values
@@ -35,8 +35,9 @@ class Agent:
         self._max_food_reserve = None
         self._generation = None
         self._uuid = None
-        self._p_breed = 1.
+        self._p_breed = 1.0
         self._kin = None
+        self._kwargs = kwargs  # just set the value directly here.
 
         # Set property managed attributes
         self.food_reserve = food_reserve
@@ -215,21 +216,19 @@ class Predator(Agent):
     # class constants
     _UUID_LENGTH = Agent._UUID_LENGTH
 
-    __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_p_breed', '_uuid', '_kin']
-
     # slots -------------------------------------------------------------------
-    __slots__ = ['_kwargs']
+    #__slots__ = ['_kwargs']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1, **kwargs):
+                 generation: int=None, p_breed: float=1.0, **kwargs):
         """Initialise a Predator instance."""
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
                          generation=generation,
                          p_breed=p_breed,
-                         kin=self.__class__.__name__)
+                         kin=self.__class__.__name__,
+                         **kwargs)
 
 
 class Prey(Agent):
@@ -244,18 +243,19 @@ class Prey(Agent):
     _UUID_LENGTH = Agent._UUID_LENGTH
 
     # slots -------------------------------------------------------------------
-    __slots__ = ['_p_flee', '_kwargs']
+    __slots__ = ['_p_flee']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1, p_flee: float=0,
+                 generation: int=None, p_breed: float=1.0, p_flee: float=0.0,
                  **kwargs):
         """Initialise a Prey instance."""
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
                          generation=generation,
                          p_breed=p_breed,
-                         kin=self.__class__.__name__)
+                         kin=self.__class__.__name__,
+                         **kwargs)
 
         # initialise new attributes
         self._p_flee = 0
