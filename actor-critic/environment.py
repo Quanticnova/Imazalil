@@ -4,6 +4,8 @@ import numpy as np
 from collections import ChainMap, namedtuple
 from typing import Union, Dict, NamedTuple
 
+from agents import Agent, Predator, Prey
+
 
 class Environment:
     """The environment class providing necessary functionaliy.
@@ -17,8 +19,6 @@ class Environment:
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, **agent_kwargs: Union[int, float, None]):
-        # densities:0.2, food_reserve:3, max_food_reserve:None,
-        # p_breed:0.4, p_flee:0.5
         """Initialize the environment.
 
         Given parameters supply the necessary parameters for the agent init.
@@ -34,7 +34,10 @@ class Environment:
         self.dim = dim
 
         # set the attributes that match the slot values
+        # values not specified will carry the default values from above
         # TODO: handle not slottet kwargs
+        # TODO: remove properties from environment. only handle attributes in
+        # agent classes. pass arguments via dict.
         for k, v in agent_kwargs.items():
             if "_" + k in self.__slots__:
                 setattr(self, k, v)
@@ -89,6 +92,7 @@ class Environment:
         else:
                 self._densities = densities
 
+    # food reserve
     @property
     def food_reserve(self) -> int:
         """The food reserve of the agent."""
@@ -152,3 +156,7 @@ class Environment:
 
         else:
             self._p_breed = p_breed
+
+    # staticmethods -----------------------------------------------------------
+
+    # methods -----------------------------------------------------------------

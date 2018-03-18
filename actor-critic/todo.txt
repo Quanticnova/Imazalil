@@ -7,6 +7,8 @@ env:
     - additionally the necessary functions step, reset, .. see gym
     - use collections.ChainMap to create a single map of the agents -> no
         need for handling 2 (or more) dictionaries
-    - maybe use queue.Queue for iterating over shuffled agents? How can the
-        order be changed?
     - agent objects can be stored in dicts
+    - move the initialization to the agent classes:
+        . pass agent class functors to environment
+        . pass agent init arguments through Environment
+        . remove unneeded properties from environment
