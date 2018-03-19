@@ -1,6 +1,7 @@
 
 
 import numpy as np
+import numpy.ma as ma
 import matplotlib.pyplot as plt
 import uuid
 import datetime as dt
@@ -386,7 +387,7 @@ class Grid:
             # colors and labels
             colors = ['#fde725', '#440154']
             labels = ['Prey', 'Predator']
-            # TODO: optional colors and kintypes 
+            # TODO: optional colors and kintypes
 
             # plotting
             for n, d in enumerate(densities):
@@ -403,7 +404,9 @@ class Grid:
             fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111)
 
-        im = ax.imshow(plotarr, cmap='viridis', vmin=-1, vmax=1)
+        # mask array
+        masked_plotarr = ma.masked_equal(plotarr, 0)
+        im = ax.imshow(masked_plotarr, cmap='viridis', vmin=-1, vmax=1)
 
         if(colourbar):
             cbar = plt.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,

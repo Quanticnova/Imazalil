@@ -1,0 +1,34 @@
+Grid:
+    NX: 256  # number of X gridcells
+    NY: 256  # number of Y gridcells
+    ResRate: 0.5  # rate of resource regrowing
+
+Sim:
+    FastForward: 1 # plot just every nth time step 
+    NEpoch: 200  # number of epochs the simulation should run
+    Timesteps: 500  # number of timesteps per epoch
+    RhoPred: 0.2  # density of predators
+    RhoPrey: 0.215  # density of preys
+
+Prey:
+    Pflee: 0.4  # probability to flee
+    Pbreed: 0.2  # prob to mate
+    FoodReserve: 4  # initial food reserve
+    FoodReserveMax: 8  # maximum food reserve
+    #Rules: "NN"  # using neural network rules
+    Rules: "default"  #using default prey rules
+    Score: -1  # this should be more precise, but not possible atm
+
+Pred:
+    Pbreed: 0.2  # prob to mate
+    FoodReserve: 4  # see above
+    FoodReserveMax: 8  # see above
+    #Rules: "NN"  # using neural network rules
+    Rules: "default"  # using default predator rules
+    Score: -1  # this should be more precise, but not possible atm
+
+Plots:
+    filepath: "plots/"
+    figsize: !!python/tuple [9,12]  # important to tell python that this is a tuple
+    format: 'png'
+    DPI: 300
