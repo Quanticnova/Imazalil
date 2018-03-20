@@ -262,17 +262,23 @@ class GridPPM(Environment):
 
         self.env = self.env.reshape(self.dim)
 
+    # neighbourhood
     def neighbourhood(self, index: np.ndarray) -> np.ndarray:
-        """Return the 9 neighbourhood for a given index."""
-        if not isinstance(index, np.ndarrary):
+        """Return the 9 neighbourhood for a given index and the index values."""
+        if not isinstance(index, np.ndarray):
             raise TypeError("Index must be of type {} but {} was given."
-                            "".format(type(np.ndarray), type(index)))
+                            "".format(np.ndarray, type(index)))
 
-        delta = np.array([[1, -1], [1, 0], [1, 1],  # UL, U, UR
+        # "up" or "down" in the sense of up and down on screen
+        delta = np.array([[-1, -1], [-1, 0], [-1, 1],  # UL, U, UR
                           [0, -1], [0, 0], [0, 1],  # L, _, R
-                          [-1, -1], [-1, 0], [-1, 1]])  # DL, D, DR
+                          [1, -1], [1, 0], [1, 1]])  # DL, D, DR
 
-        neighbour_idc = index + delta
+        neighbour_idc = (index + delta) % self.dim  # ensure bounds
+        neighbourhood = self.env[tuple(neighbour_idc.T)]
+
+        return neighbourhood, neighbour_idc
+
     # moving
     def move(self, direction: str) -> Callable:
         """Return a function to which an agent can be passed and move the agent."""
@@ -291,7 +297,7 @@ class GridPPM(Environment):
             """
             if not isinstance(index, np.ndarray):
                 raise TypeError("Index must be of type {} but {} was given."
-                                "".format(type(np.ndarray), type(index)))
+                                "".format(np.ndarray, type(index)))
 
             # check if move is possible
             delta = self._direction_to_value(direction)
