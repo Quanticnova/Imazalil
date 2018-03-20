@@ -3,6 +3,7 @@
 import numpy as np
 from collections import ChainMap, namedtuple
 from typing import Union, Callable
+from gym.spaces import Discrete  # for the discrete action space of the agents
 
 
 class Environment:
@@ -149,11 +150,25 @@ class Environment:
         """Return the maximum population of the grid."""
         return self._max_pop
 
-    # staticmethods
+    # staticmethods -----------------------------------------------------------
+
+    # methods -----------------------------------------------------------------
 
 
-class Grid(Environment):
-    """humpdy dumpdy docstring."""
+class GridPPM(Environment):
+    """humpdy dumpdy docstring.
+
+    TODO: think about the action lookup. the thing below looks awful!   ACTION_LOOKUP = {0: Environment.move(0),
+                     1: Environment.move(1),
+                     2: Environment.move(2),
+                     3: Environment.move(3),
+                     4: Environment.move(4),
+                     5: Environment.move(5),
+                     6: Environment.move(6),
+                     7: Environment.move(7)}
+
+    New idea: lookup key is: LU, U, RU ... left up, up, right up, ...
+    """
 
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple],
@@ -169,7 +184,55 @@ class Grid(Environment):
         # populate the grid
         self._populate()
 
-    # methods
+    # properties --------------------------------------------------------------
+    # env
+    @property
+    def env(self) -> np.ndarray:
+        """Return the grid as numpy array with uuids."""
+        return self._env
+
+    @env.setter
+    def env(self, env: np.ndarray) -> None:
+        """Set the environment."""
+        if type(self._env) is not type(env):
+            raise TypeError("Type mismatch - env must be of type {} but {} was"
+                            " given.".format(type(self._env), type(env)))
+
+        # if any value in env is not '' then env is already initialized
+        # NOTE: this is currently not working :-)
+        # elif np.any(np.logical_not(np.isin(self._env, ''))):
+        #     raise RuntimeError("env already initialized.")
+
+        else:
+            self._env = env
+
+    # staticmethods -----------------------------------------------------------
+    @staticmethod
+    def _direction_to_value(direction: str) -> np.ndarray:
+        """Staticmethod that converts a direction string to a value.
+
+        Multiple passes of DULR as well as other characters are ignored.
+        TODO: other stepsize?
+        """
+        # no typechecking - this has to happen earlier
+        dirs = list(direction)
+        delta = np.array([0, 0])
+        if not dirs:
+            return delta
+        else:  # NOTE: first Y, then X coordinate
+            if "D" in dirs:
+                delta += np.array([-1, 0])
+            if "U" in dirs:
+                delta += np.array([1, 0])
+            if "L" in dirs:
+                delta += np.array([0, -1])
+            if "R" in dirs:
+                delta += np.array([0, 1])
+
+            return delta
+
+    # methods -----------------------------------------------------------------
+    # populate
     def _populate(self) -> None:
         """Populate the Environment with given agents & values."""
         # multiply fractions with maximum number of population
@@ -199,23 +262,53 @@ class Grid(Environment):
 
         self.env = self.env.reshape(self.dim)
 
-    # env
-    @property
-    def env(self) -> np.ndarray:
-        """Return the grid as numpy array with uuids."""
-        return self._env
+    def neighbourhood(self, index: np.ndarray) -> np.ndarray:
+        """Return the 9 neighbourhood for a given index."""
+        if not isinstance(index, np.ndarrary):
+            raise TypeError("Index must be of type {} but {} was given."
+                            "".format(type(np.ndarray), type(index)))
 
-    @env.setter
-    def env(self, env: np.ndarray) -> None:
-        """Set the environment."""
-        if type(self._env) is not type(env):
-            raise TypeError("Type mismatch - env must be of type {} but {} was"
-                            " given.".format(type(self._env), type(env)))
+        delta = np.array([[1, -1], [1, 0], [1, 1],  # UL, U, UR
+                          [0, -1], [0, 0], [0, 1],  # L, _, R
+                          [-1, -1], [-1, 0], [-1, 1]])  # DL, D, DR
 
-        # if any value in env is not '' then env is already initialized
-        # NOTE: this is currently not working :-)
-        # elif np.any(np.logical_not(np.isin(self._env, ''))):
-        #     raise RuntimeError("env already initialized.")
+        neighbour_idc = index + delta
+    # moving
+    def move(self, direction: str) -> Callable:
+        """Return a function to which an agent can be passed and move the agent."""
+        def move_agent(index: np.ndarray) -> None:
+            """Move the given agent to previously specified direction.
 
-        else:
-            self._env = env
+            Directions can be (A is agent and corresponds to direction ''):
+                LU U  RU
+                L  A  R
+                LD D  RD
+            From these input strings the direction is calculated.
+
+            If the desired location is already occupied, do nothing.
+            TODO: add a negative reward for trying to access an already occupied
+                space?
+            """
+            if not isinstance(index, np.ndarray):
+                raise TypeError("Index must be of type {} but {} was given."
+                                "".format(type(np.ndarray), type(index)))
+
+            # check if move is possible
+            delta = self._direction_to_value(direction)
+            new_pos = (index + delta) % self.dim  # taking care of bounds
+            if self.env[tuple(new_pos)] != '':
+                # to be excepted later
+                raise RuntimeError("Direction is already occupied.")
+
+            else:
+                # FIXME: this won't work in the 1D case
+                # moving
+                self.env[tuple(new_pos)] = self.env[tuple(index)]
+                self.env[tuple(index)] = ''  # clearing the previous position
+
+        # outer function
+        if not isinstance(direction, str):
+            raise TypeError("Direction must be of type {}, but {} was"
+                            "given.".format(str, type(direction)))
+
+        return move_agent
