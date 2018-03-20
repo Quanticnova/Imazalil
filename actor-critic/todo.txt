@@ -8,4 +8,9 @@ env:
     - use collections.ChainMap to create a single map of the agents -> no
         need for handling 2 (or more) dictionaries
     - agent objects can be stored in dicts
-    
+
+plots:
+    - masked arrays -> empty cells are white (ma.masked_equal(arr, 0))
+
+ profiler:
+    - use one!
