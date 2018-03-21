@@ -1,6 +1,7 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
 import uuid
+from typing import Callable
 
 
 class Agent:
@@ -211,6 +212,20 @@ class Agent:
         return uuid.uuid4().hex
 
     # TODO: think about sensible ways for kin type storage -> plotting etc.
+    # classmethods ------------------------------------------------------------
+    @classmethod
+    def procreate(cls, *, food_reserve: int=3, **kwargs) -> Callable:
+        """The classmethod creates a new instance of `cls` and passes the necessary parameters.
+
+        food_reserve and generation are explicitely mentioned here.
+        """
+        #inheritance_list = ['max_food_reserve', 'generation', 'p_breed']
+        #inheritance_dict = {}
+        #for i in inheritance_list:
+        #    inheritance_dict[i] = getattr()
+
+        #offspring = cls(food_reserve=food_reserve, generation=generation)
+
 
 
 class Predator(Agent):
