@@ -348,10 +348,11 @@ class GridPPM(Environment):
             new_pos = (index + delta) % self.dim  # taking care of bounds
             if self.env[tuple(new_pos)] != '':
                 # to be excepted later
-                raise RuntimeError("target is already occupied.")
+                # raise RuntimeError("target is already occupied.")
+                pass  # TODO: penalty!
 
             else:
-                # FIXME: this won't work in the 1D case
+                # FIXME: this won't work in the 1D case (if desired..)
                 # moving
                 self.env[tuple(new_pos)] = self.env[tuple(index)]
                 self.env[tuple(index)] = ''  # clearing the previous position
@@ -434,3 +435,45 @@ class GridPPM(Environment):
                 pass
 
         return eat_and_move
+
+    # procreating
+    @_argument_test_str
+    def procreate(self, target: str) -> Callable:
+        """Return a function to which an agent index can be passed and that agent tries to procreate with probability p_breed."""
+        def procreate_and_move(index: np.ndarray) -> None:
+            """Try to have offspring in `target` with probability p_breed.
+
+            `targets` are the same as in `move` and `eat`. If `target` is not
+            empty, there should be a penalty (TODO). Also for trying to
+            procreate without having enough food_reserve is penalized (TODO).
+            """
+            if not isinstance(index, np.ndarray):
+                raise TypeError("Index must be of type {} but {} was given."
+                                "".format(np.ndarray, type(index)))
+
+            # fetch agent
+            agent_uuid = self.env[tuple(index)]
+            agent = self._agents_dict[agent_uuid]
+
+            if type(agent) not in self.agent_types:
+                raise RuntimeError("The current agent {} of kintype {} is not "
+                                   "in the list agent_types. This should not "
+                                   "have happened!".format(agent_uuid,
+                                                           agent.kin))
+
+            # now we have to check if target space is free or if it is occupied
+            delta = self._target_to_value(target)
+            target_index = (index + delta) % self.dim  # bounds again!
+            target_uuid = self.env[tuple(target_index)]  # == agent_uuid if delta is [0,0]
+
+            if agent.max_food_reserve >= 5:  # FIXME: no hardcoding!
+                if target_uuid != '':
+                    pass  # TODO: penalty!
+
+                else:
+                    # create new instance of <agent>
+                    Agent = type(agent)
+                    newborn = Agent()  # still thinking about sensible implementation...
+
+            else:
+                pass  # TODO: penalty!
