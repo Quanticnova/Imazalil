@@ -262,6 +262,34 @@ class GridPPM(Environment):
 
         self.env = self.env.reshape(self.dim)
 
+    # argument testing
+    def _argument_test_str(func: Callable) -> Callable:
+        """Function wrapper to check whether argument of decorated function is valid str."""
+        def helper(self, s: str):
+            """Helper function to actually check if argument is string."""
+            if isinstance(s, str):
+                return func(self, s)
+
+            else:
+                raise TypeError("Argument must be of type {}, but {} was "
+                                "given.".format(str, type(s)))
+
+        return helper
+    # the code below doesn't work as decorator atm...
+    '''
+    # index test ndarray
+    def _index_test_ndarray(func: Callable) -> Callable:
+        """Function wrapper to check whether argument of decorated function is valid np.ndarray."""
+        def helper(self, index: np.ndarray):
+            """Helper function to actually check if index is ndarray."""
+            if isinstance(index, np.ndarray):
+                return func(self, index)
+            else:
+                raise TypeError("Index must be of type {} but {} was given."
+                                "".format(np.ndarray, type(index)))
+
+        return helper
+    '''
     # neighbourhood
     def neighbourhood(self, index: np.ndarray) -> np.ndarray:
         """Return the 9 neighbourhood for a given index and the index values."""
@@ -275,13 +303,14 @@ class GridPPM(Environment):
                           [1, -1], [1, 0], [1, 1]])  # DL, D, DR
 
         neighbour_idc = (index + delta) % self.dim  # ensure bounds
-        neighbourhood = self.env[tuple(neighbour_idc.T)]
+        neighbourhood = self.env[tuple(neighbour_idc.T)]  # numpy magic for correct indexing
 
         return neighbourhood, neighbour_idc
 
     # moving
+    @_argument_test_str
     def move(self, direction: str) -> Callable:
-        """Return a function to which an agent can be passed and move the agent."""
+        """Return a function to which an agent index can be passed to move the agent."""
         def move_agent(index: np.ndarray) -> None:
             """Move the given agent to previously specified direction.
 
@@ -312,9 +341,11 @@ class GridPPM(Environment):
                 self.env[tuple(new_pos)] = self.env[tuple(index)]
                 self.env[tuple(index)] = ''  # clearing the previous position
 
-        # outer function
-        if not isinstance(direction, str):
-            raise TypeError("Direction must be of type {}, but {} was"
-                            "given.".format(str, type(direction)))
-
         return move_agent
+
+    # eating
+    @_argument_test_str
+    def eat(self, direction: str) -> Callable:
+        """Return a function to which an agent index can be passed and that agent tries to eat."""
+        def eat_and_move(index: np.ndarray) -> None:
+            pass
