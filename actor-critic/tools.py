@@ -1,6 +1,7 @@
 """Docstring for the tools."""
 import datetime as dt
 from typing import Callable
+from collections import ChainMap
 
 
 def timestamp(return_obj: bool=False):
@@ -26,3 +27,22 @@ def function_call_counter(func: Callable) -> Callable:
 
     helper.calls = 0
     return helper
+
+
+# for deleting elements not just in the first layer
+class DeepChainMap(ChainMap):
+    """Variant of ChainMap that allows direct updates to inner scopes."""
+
+    def __setitem__(self, key, value):
+        for mapping in self.maps:
+            if key in mapping:
+                mapping[key] = value
+                return
+        self.maps[0][key] = value
+
+    def __delitem__(self, key):
+        for mapping in self.maps:
+            if key in mapping:
+                del mapping[key]
+                return
+        raise KeyError(key)

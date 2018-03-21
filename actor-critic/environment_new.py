@@ -1,9 +1,11 @@
 """Providing the environment."""
 
 import numpy as np
-from collections import ChainMap, namedtuple
+from collections import namedtuple
 from typing import Union, Callable
 from gym.spaces import Discrete  # for the discrete action space of the agents
+
+from tools import DeepChainMap
 
 
 class Environment:
@@ -55,7 +57,7 @@ class Environment:
                            self.agent_types])
         # initialise with empty dicts
         self._agents_tuple = agnts(*[{} for _ in self.agent_types])
-        self._agents_dict = ChainMap(*self._agents_tuple)
+        self._agents_dict = DeepChainMap(*self._agents_tuple)
 
     # properties -------------------------------------------------------------
     # dimensions
@@ -371,22 +373,64 @@ class GridPPM(Environment):
                                 "".format(np.ndarray, type(index)))
 
             # check if eating move is possible:
+            # fetch agent
             agent_uuid = self.env[tuple(index)]
             agent = self._agents_dict[agent_uuid]
-            if agent.kin == "Predator":
-                # now we have to check if target is eatable
-                delta = self._target_to_value(target)
-                target_index = (index + delta) % self.dim  # bounds again!
-                target_uuid = self.env[tuple(target_index)]
-                if target_uuid == '':
-                    pass  # penalty!
 
-                elif self._agents_dict[target_uuid].kin == "Predator":
-                    pass  # more penalty! one does not simply eat his own kind!
+            # initialize target
+            target_agent = None
+
+            if type(agent) not in self.agent_types:
+                raise RuntimeError("The current agent {} of kintype {} is not "
+                                   "in the list agent_types. This should not "
+                                   "have happened!".format(agent_uuid,
+                                                           agent.kin))
+
+            # now we have to check if target is eatable or if there is
+            # space to move to
+            delta = self._target_to_value(target)
+            target_index = (index + delta) % self.dim  # bounds again!
+            target_uuid = self.env[tuple(target_index)]  # == agent_uuid if delta is [0,0]
+
+            if target_uuid != '':
+                target_agent = self._agents_dict[target_uuid]  # get the target
+
+            if agent.kin == "Predator":
+                if not target_agent:
+                    pass  # TODO: penalty! don't try to eat empty space
+
+                # if agent targets not itself i.e. moves
+                elif delta.any() and (target_agent.kin == "Predator"):
+                    print("do not eat your own kind!")
+                    pass  # TODO: more penalty! one does not simply eat his own kind!
+
+                elif not delta.any():
+                    print("don't try to eat yourself.")
+                    pass  # TODO: penalty! don't try to eat yourself.
 
                 else:
                     roll = np.random.rand()
-                    if roll <= self.p_eat:
-                        self.food_reserve += 3  # FIXME: no hardcoding!
+                    if roll <= agent.p_eat:
+                        print("p_roll = {}".format(roll))
+                        agent.food_reserve += 3  # FIXME: no hardcoding!
                         self._die(target_index)  # remove the eaten prey
-                        self.move(target)(target_index)
+                        self.move(target)(index)
+
+            elif agent.kin == "Prey":
+                # prey just eats
+                if target_uuid == '':
+                    agent.food_reserve += 2  # FIXME: no hardcoding!
+                    self.move(target)(index)
+
+                elif not delta.any():
+                    print("just standing around and eating.")
+                    self.food_reserve += 2  # just standing around and eating
+
+                else:
+                    pass  # TODO: penalty! a Prey can't eat other agents
+
+            else:
+                # TODO: implement more agent types?
+                pass
+
+        return eat_and_move
