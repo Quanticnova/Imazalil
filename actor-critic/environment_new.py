@@ -208,14 +208,14 @@ class GridPPM(Environment):
 
     # staticmethods -----------------------------------------------------------
     @staticmethod
-    def _direction_to_value(direction: str) -> np.ndarray:
-        """Staticmethod that converts a direction string to a value.
+    def _target_to_value(target: str) -> np.ndarray:
+        """Staticmethod that converts a target string to a value.
 
         Multiple passes of DULR as well as other characters are ignored.
         TODO: other stepsize?
         """
         # no typechecking - this has to happen earlier
-        dirs = list(direction)
+        dirs = list(target)
         delta = np.array([0, 0])
         if not dirs:
             return delta
@@ -275,8 +275,10 @@ class GridPPM(Environment):
                                 "given.".format(str, type(s)))
 
         return helper
-    # the code below doesn't work as decorator atm...
-    '''
+
+    # the code below doesn't work as decorator atm because I wanted to apply it to a function inside a function
+
+    # just works for 'regular' methods and not for functions inside functions
     # index test ndarray
     def _index_test_ndarray(func: Callable) -> Callable:
         """Function wrapper to check whether argument of decorated function is valid np.ndarray."""
@@ -289,7 +291,18 @@ class GridPPM(Environment):
                                 "".format(np.ndarray, type(index)))
 
         return helper
-    '''
+
+    # dying
+    @_index_test_ndarray
+    def _die(self, index: np.ndarray) -> None:
+        """Delete the given index from the environment and replace its position with empty string ''."""
+        uuid = self.env[tuple(index)]
+        if uuid != '':
+            del self._agents_dict[uuid]
+            self.env[tuple(index)] = ''
+        else:
+            pass  # TODO: maybe warnings.warn?
+
     # neighbourhood
     def neighbourhood(self, index: np.ndarray) -> np.ndarray:
         """Return the 9 neighbourhood for a given index and the index values."""
@@ -309,16 +322,16 @@ class GridPPM(Environment):
 
     # moving
     @_argument_test_str
-    def move(self, direction: str) -> Callable:
+    def move(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed to move the agent."""
         def move_agent(index: np.ndarray) -> None:
-            """Move the given agent to previously specified direction.
+            """Move the given agent to previously specified target.
 
-            Directions can be (A is agent and corresponds to direction ''):
+            targets can be (A is agent and corresponds to target ''):
                 LU U  RU
                 L  A  R
                 LD D  RD
-            From these input strings the direction is calculated.
+            From these input strings the target is calculated.
 
             If the desired location is already occupied, do nothing.
             TODO: add a negative reward for trying to access an already occupied
@@ -329,11 +342,11 @@ class GridPPM(Environment):
                                 "".format(np.ndarray, type(index)))
 
             # check if move is possible
-            delta = self._direction_to_value(direction)
+            delta = self._target_to_value(target)
             new_pos = (index + delta) % self.dim  # taking care of bounds
             if self.env[tuple(new_pos)] != '':
                 # to be excepted later
-                raise RuntimeError("Direction is already occupied.")
+                raise RuntimeError("target is already occupied.")
 
             else:
                 # FIXME: this won't work in the 1D case
@@ -345,7 +358,35 @@ class GridPPM(Environment):
 
     # eating
     @_argument_test_str
-    def eat(self, direction: str) -> Callable:
+    def eat(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to eat."""
         def eat_and_move(index: np.ndarray) -> None:
-            pass
+            """Try to eat the prey in target with probability p_flee as agent from index.
+
+            targets are the same as for `move`.
+            TODO: maybe change p_flee to p_eat, such that it's easier to call.
+            """
+            if not isinstance(index, np.ndarray):
+                raise TypeError("Index must be of type {} but {} was given."
+                                "".format(np.ndarray, type(index)))
+
+            # check if eating move is possible:
+            agent_uuid = self.env[tuple(index)]
+            agent = self._agents_dict[agent_uuid]
+            if agent.kin == "Predator":
+                # now we have to check if target is eatable
+                delta = self._target_to_value(target)
+                target_index = (index + delta) % self.dim  # bounds again!
+                target_uuid = self.env[tuple(target_index)]
+                if target_uuid == '':
+                    pass  # penalty!
+
+                elif self._agents_dict[target_uuid].kin == "Predator":
+                    pass  # more penalty! one does not simply eat his own kind!
+
+                else:
+                    roll = np.random.rand()
+                    if roll <= self.p_eat:
+                        self.food_reserve += 3  # FIXME: no hardcoding!
+                        self._die(target_index)  # remove the eaten prey
+                        self.move(target)(target_index)
