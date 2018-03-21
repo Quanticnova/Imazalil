@@ -85,6 +85,13 @@ class Agent:
             raise ValueError("food_reserve must be positive, but {} was given."
                              "".format(food_reserve))
 
+        elif self.max_food_reserve:
+            if food_reserve >= self.max_food_reserve:
+                self._food_reserve = self.max_food_reserve
+
+            else:
+                self._food_reserve = food_reserve
+
         else:
             self._food_reserve = food_reserve
 
@@ -217,11 +224,12 @@ class Predator(Agent):
     _UUID_LENGTH = Agent._UUID_LENGTH
 
     # slots -------------------------------------------------------------------
-    #__slots__ = ['_kwargs']
+    __slots__ = ['_p_eat']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1.0, **kwargs):
+                 generation: int=None, p_breed: float=1.0, p_eat: float=1.0,
+                 **kwargs):
         """Initialise a Predator instance."""
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
@@ -229,6 +237,31 @@ class Predator(Agent):
                          p_breed=p_breed,
                          kin=self.__class__.__name__,
                          **kwargs)
+
+        # initialise new attributes
+        self._p_eat = 1.0
+
+        # set new (property managed) attributes
+        self.p_eat = p_eat
+
+    # properties --------------------------------------------------------------
+    @property
+    def p_eat(self) -> float:
+        """The eating probability of the predator."""
+        return self._p_eat
+
+    @p_eat.setter
+    def p_eat(self, p_eat: float) -> None:
+        """The eating probability setter."""
+        if not isinstance(p_eat, float):
+            raise TypeError("p_eat must be of type float, but {} was given."
+                            "".format(type(p_eat)))
+        elif p_eat < 0 or p_eat > 1:
+            raise ValueError("p_eat must be between 0 and 1 but {} was given."
+                             "".format(p_eat))
+
+        else:
+            self._p_eat = p_eat
 
 
 class Prey(Agent):
@@ -258,7 +291,7 @@ class Prey(Agent):
                          **kwargs)
 
         # initialise new attributes
-        self._p_flee = 0
+        self._p_flee = 0.0
 
         # set new (property managed) attributes
         self.p_flee = p_flee
