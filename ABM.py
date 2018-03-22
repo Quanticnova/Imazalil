@@ -411,7 +411,7 @@ class Grid:
         if(colourbar):
             cbar = plt.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
                                 ticks=[-1, 0, 1], label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
-            cbar.
+            cbar.set_yticklabels(['Predator', 'Empty', 'Prey'])
 
         if(not ticks):
             ax.set_xticklabels([])
