@@ -305,6 +305,23 @@ class GridPPM(Environment):
         else:
             pass  # TODO: maybe warnings.warn?
 
+    # add agent to _agents_tuple
+    def _add_to_agents_tuple(self, *, newborn: Callable) -> None:
+        """Add the given agent in the corresponding subtuple dictionary.
+
+        The added agent is then also available in GridPPM._agents_dict.
+        """
+        getattr(self._agents_tuple, newborn.kin)[newborn.uuid] = newborn
+
+    # add agent to Environment
+    def add_to_env(self, *, target_index: np.ndarray, newborn: Callable) -> None:
+        """Add the given agent to the environment using target_index.
+
+        The agent is added to the corresponding subtuple dictionary, and to the environment array.
+        """
+        self._add_to_agents_tuple(newborn=newborn)
+        self.env[tuple(target_index)] = newborn.uuid  # we assume that the index is not occupied
+
     # neighbourhood
     def neighbourhood(self, index: np.ndarray) -> np.ndarray:
         """Return the 9 neighbourhood for a given index and the index values."""
@@ -466,14 +483,20 @@ class GridPPM(Environment):
             target_index = (index + delta) % self.dim  # bounds again!
             target_uuid = self.env[tuple(target_index)]  # == agent_uuid if delta is [0,0]
 
-            if agent.max_food_reserve >= 5:  # FIXME: no hardcoding!
+            if agent.food_reserve >= 5:  # FIXME: no hardcoding!
                 if target_uuid != '':
                     pass  # TODO: penalty!
 
                 else:
-                    # create new instance of <agent>
-                    Agent = type(agent)
-                    newborn = Agent()  # still thinking about sensible implementation...
-
+                    # try to breed
+                    roll = np.random.rand()
+                    if roll <= agent.p_breed:
+                        # create new instance of <agent>
+                        newborn = agent.procreate(food_reserve=3)  # FIXME hardcoded
+                        self.add_to_env(target_index=target_index,
+                                        newborn=newborn)
+                        agent.food_reserve -= 3  # reproduction costs enery
             else:
                 pass  # TODO: penalty!
+
+        return procreate_and_move
