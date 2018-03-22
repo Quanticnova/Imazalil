@@ -1,4 +1,5 @@
 """Providing the environment."""
+import warnings
 
 import numpy as np
 from collections import namedtuple
@@ -200,11 +201,6 @@ class GridPPM(Environment):
             raise TypeError("Type mismatch - env must be of type {} but {} was"
                             " given.".format(type(self._env), type(env)))
 
-        # if any value in env is not '' then env is already initialized
-        # NOTE: this is currently not working :-)
-        # elif np.any(np.logical_not(np.isin(self._env, ''))):
-        #     raise RuntimeError("env already initialized.")
-
         else:
             self._env = env
 
@@ -221,7 +217,7 @@ class GridPPM(Environment):
         delta = np.array([0, 0])
         if not dirs:
             return delta
-        else:  # NOTE: first Y, then X coordinate
+        else:  # first Y, then X coordinate
             if "D" in dirs:
                 delta += np.array([-1, 0])
             if "U" in dirs:
@@ -303,7 +299,7 @@ class GridPPM(Environment):
             del self._agents_dict[uuid]
             self.env[tuple(index)] = ''
         else:
-            pass  # TODO: maybe warnings.warn?
+            warnings.warn("Trying to delete an empty cell", RuntimeWarning)
 
     # add agent to _agents_tuple
     def _add_to_agents_tuple(self, *, newborn: Callable) -> None:
@@ -323,12 +319,9 @@ class GridPPM(Environment):
         self.env[tuple(target_index)] = newborn.uuid  # we assume that the index is not occupied
 
     # neighbourhood
+    @_index_test_ndarray
     def neighbourhood(self, index: np.ndarray) -> np.ndarray:
         """Return the 9 neighbourhood for a given index and the index values."""
-        if not isinstance(index, np.ndarray):
-            raise TypeError("Index must be of type {} but {} was given."
-                            "".format(np.ndarray, type(index)))
-
         # "up" or "down" in the sense of up and down on screen
         delta = np.array([[-1, -1], [-1, 0], [-1, 1],  # UL, U, UR
                           [0, -1], [0, 0], [0, 1],  # L, _, R
@@ -381,10 +374,9 @@ class GridPPM(Environment):
     def eat(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to eat."""
         def eat_and_move(index: np.ndarray) -> None:
-            """Try to eat the prey in target with probability p_flee as agent from index.
+            """Try to eat the prey in target with probability p_eat = 1 - p_flee as agent from index.
 
             targets are the same as for `move`.
-            TODO: maybe change p_flee to p_eat, such that it's easier to call.
             """
             if not isinstance(index, np.ndarray):
                 raise TypeError("Index must be of type {} but {} was given."

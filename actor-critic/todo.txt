@@ -5,7 +5,6 @@ agents:
 
 env:
     - additionally the necessary functions step, reset, .. see gym
-    - print warnings.warn messages if undesired behaviour is happening!
 
 plots:
     - masked arrays -> empty cells are white (ma.masked_equal(arr, 0))
