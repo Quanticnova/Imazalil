@@ -21,6 +21,7 @@ class Agent:
 
     # class constants
     _UUID_LENGTH = len(uuid.uuid4().hex)
+    HEIRSHIP = ['max_food_reserve', 'generation', 'p_breed', '_kwargs']
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
@@ -214,18 +215,33 @@ class Agent:
     # TODO: think about sensible ways for kin type storage -> plotting etc.
     # classmethods ------------------------------------------------------------
     @classmethod
-    def procreate(cls, *, food_reserve: int=3, **kwargs) -> Callable:
-        """The classmethod creates a new instance of `cls` and passes the necessary parameters.
+    def _procreate_empty(cls, *, food_reserve: int) -> Callable:
+        """The classmethod creates a new "empty" instance of `cls`.
 
-        food_reserve and generation are explicitely mentioned here.
+        food_reserve needs to be set explicitely.
         """
-        #inheritance_list = ['max_food_reserve', 'generation', 'p_breed']
-        #inheritance_dict = {}
-        #for i in inheritance_list:
-        #    inheritance_dict[i] = getattr()
+        return cls(food_reserve=food_reserve)
 
-        #offspring = cls(food_reserve=food_reserve, generation=generation)
+    # methods -----------------------------------------------------------------
+    def procreate(self, *, food_reserve: int) -> Callable:
+        """Take a class instance and inherit all attributes in `HEIRSHIP` from self.
 
+        Return a `cls` instance with attributes set.
+        """
+        # create empty instance
+        offspring = self._procreate_empty(food_reserve=food_reserve)
+
+        # iterate over all attributes
+        for attr in self.HEIRSHIP:
+            parent_attr = getattr(self, attr)
+            if parent_attr is not None:
+                # adapt generation counter if set in parent
+                if attr == 'generation':
+                    setattr(offspring, attr, parent_attr+1)
+                else:
+                    setattr(offspring, attr, parent_attr)
+
+        return offspring
 
 
 class Predator(Agent):
@@ -237,6 +253,7 @@ class Predator(Agent):
 
     # class constants
     _UUID_LENGTH = Agent._UUID_LENGTH
+    HEIRSHIP = Agent.HEIRSHIP + ['p_eat']
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_p_eat']
@@ -289,6 +306,7 @@ class Prey(Agent):
 
     # class constants
     _UUID_LENGTH = Agent._UUID_LENGTH
+    HEIRSHIP = Agent.HEIRSHIP + ['p_flee']
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_p_flee']
