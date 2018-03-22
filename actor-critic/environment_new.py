@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 from collections import namedtuple
 from typing import Union, Callable
-from gym.spaces import Discrete  # for the discrete action space of the agents
+from gym.spaces import Discrete, Tuple  # for the discrete action space of the agents
 
 from tools import DeepChainMap
 
@@ -186,6 +186,10 @@ class GridPPM(Environment):
 
         # populate the grid
         self._populate()
+
+        # create the action space
+        self.action_space = Tuple((Discrete(3),  # move, eat, procreate
+                                   Discrete(9)))  # U, D, L, R ....
 
     # properties --------------------------------------------------------------
     # env
