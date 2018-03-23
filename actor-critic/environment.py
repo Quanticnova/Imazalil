@@ -5,6 +5,7 @@ import numpy as np
 from collections import namedtuple
 from typing import Union, Callable
 from gym.spaces import Discrete, Tuple  # for the discrete action space of the agents
+from gym.utils import seeding
 
 from tools import DeepChainMap
 
@@ -18,7 +19,7 @@ class Environment:
     # slots -------------------------------------------------------------------
     __slots__ = ['_dim', '_densities', '_agent_types', '_agent_kwargs',
                  '_max_pop', '_env', '_agents_dict', '_agent_named_properties',
-                 '_agents_tuple']
+                 '_agents_tuple', '_np_seed']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
@@ -33,6 +34,7 @@ class Environment:
         self._densities = None
         self._agent_kwargs = {}
         self._agent_types = None
+        self._np_seed = None
 
         # set property managed attribute(s)
         self.dim = dim
@@ -156,6 +158,25 @@ class Environment:
     # staticmethods -----------------------------------------------------------
 
     # methods -----------------------------------------------------------------
+    def seed(self, seed=None):
+        """Set the seed for the random generator for the simulation."""
+        self._np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def step(self, *args, **kwargs):
+        """Dummy method, to be implemented in the derived classes."""
+        raise NotImplementedError("Use a derived class that implemented this"
+                                  "function")
+
+    def reset(self, *args, **kwargs):
+        """Dummy method, to be implemented in the derived classes."""
+        raise NotImplementedError("Use a derived class that implemented this"
+                                  "function")
+
+    def render(self, *args, **kwargs):
+        """Dummy method, to be implemented in the derived classes."""
+        raise NotImplementedError("Use a derived class that implemented this"
+                                  "function")
 
 
 class GridPPM(Environment):
@@ -482,6 +503,9 @@ class GridPPM(Environment):
             if agent.food_reserve >= 5:  # FIXME: no hardcoding!
                 if target_uuid != '':
                     pass  # TODO: penalty!
+
+                elif target_uuid == agent_uuid:
+                    pass # TODO penalty! don't try to create offspring in your own cell
 
                 else:
                     # try to breed
