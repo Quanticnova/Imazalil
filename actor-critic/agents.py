@@ -61,7 +61,7 @@ class Agent:
     # magic method ------------------------------------------------------------
     def __str__(self) -> str:
         """Return the agents properties."""
-        props = ("kin: {}\tID: {}\tgeneration: {}\tfood_reserve: {}\t"
+        props = ("{}\tID: {}\tgeneration: {}\tfood_reserve: {}\t"
                  "max_food_reserve: {}".format(self.kin, self.uuid,
                                                self.generation,
                                                self.food_reserve,
