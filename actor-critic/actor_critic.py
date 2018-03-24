@@ -51,10 +51,10 @@ class Policy(nn.Module):
         """Forward the given input_vector through the layers and return the two outputs."""
         input_vector = F.relu(self.affine1(input_vector))  # Layer 1
         action_scores = self.action_head(input_vector)  # action layer
-        state_values = self.value_head(input_vector)  # state value layer
+        state_value = self.value_head(input_vector)  # state value layer
 
         # softmax (re)normalizes all input tensors such that the sum of their contents is 1. The smaller a value (also negative), the smaller its softmaxed value.
-        return F.softmax(action_scores, dim=-1), state_values
+        return F.softmax(action_scores, dim=-1), state_value
 
 
 # defining necessary functions - move to a class maybe? /shrug
@@ -70,3 +70,44 @@ def select_action(*, model, state):
 
 
 # defining what to do after the episode finished.
+def finish_episode(*, model, optimizer, gamma: float=0.1):
+    """Calculate the losses and backprop them through the models NN."""
+    # initialize a few variables
+    R = 0  # The discounted reward
+    policy_losses = []
+    state_value_losses = []
+    rewards = []
+    eps = np.finfo(np.float32).eps  # machine epsilon
+
+    # get saved actions
+    saved_actions = model.saved_actions
+
+    # iterate over all rewards that we got during the play
+    for r in model.rewards[::-1]:  # backwards to account for the more recent actions
+        R = r + gamma * R  # discount!
+        rewards.append(R)  # append + [::-1] is faster than insert(0,*)
+
+    rewards = torch.Tensor(rewards[::-1])  # backwardss
+    rewards = (rewards - rewards.mean()) / (rewards.st() + eps)  # why eps???
+
+    # now interate over all probability-state value-reward pairs
+    for (log_prob, state_value), r in zip(saved_actions, rewards):
+        reward = r - state_value.data[0]  # get the value, needs `Variable`
+        policy_losses.append(-log_prob * reward)
+        # calculate the (smooth) L^1 loss = least absolute deviation
+        state_value_losses.append(F.smooth_l1_loss(state_value,
+                                                   Variable(torch.Tensor([r]))))
+
+    # empty the gradient of the optimizer
+    optimizer.zero_grad()
+
+    # calculate the loss
+    loss = torch.stack(policy_losses).sum() + torch.stack(state_value_losses).sum()
+
+    # backpropagate the loss
+    loss.backward()
+    optimizer.step()
+
+    # clear memory from unneeded variables
+    del model.rewards[:]
+    del model.saved_actions[:]
