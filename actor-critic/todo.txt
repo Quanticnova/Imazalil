@@ -6,6 +6,7 @@ agents:
 env:
     - additionally the necessary functions step, reset, seed .. see gym
     - conversion method to convert neighbourhood to array of ints
+    - one or two class constants containing the rewards
 
 plots:
     - masked arrays -> empty cells are white (ma.masked_equal(arr, 0))
@@ -21,3 +22,6 @@ simulation:
 documentation:
     - cleanup of existing documentation
     - write new documentation for environment
+
+general:
+    - cythonize the code?

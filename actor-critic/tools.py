@@ -33,7 +33,7 @@ def function_call_counter(func: Callable) -> Callable:
 def type_check(*, argument_to_check: str, type_to_check: type):
     """To be used as decorator to check if a function argument is a certain type."""
     def wrap(func):
-        def wrapped_func(**kwargs):  # we want to only use kwargs, hence the '*'
+        def wrapped_func(*args, **kwargs):  # we want to only use kwargs, hence the '*'
             # check if argument is used
             if argument_to_check in kwargs.keys():
                 if not isinstance(kwargs[argument_to_check], type_to_check):
@@ -44,7 +44,7 @@ def type_check(*, argument_to_check: str, type_to_check: type):
                 raise KeyError("{} was not found in function kwargs.".format(argument_to_check))
 
             # if everything went fine until now, we can call the function
-            func(**kwargs)
+            func(*args, **kwargs)
 
         return wrapped_func
     return wrap

@@ -26,3 +26,12 @@ PreyModel = Policy()
 PredatorModel = Policy()
 PreyOptimizer = optim.Adam(PreyModel.parameters(), lr=3e-2)  # whatever the numbers...
 PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=3e-2)
+
+
+# main loop
+def main():
+    """To be implemented."""
+
+
+if __name__ == "__main__":
+    main()
