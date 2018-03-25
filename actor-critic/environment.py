@@ -7,7 +7,7 @@ from typing import Union, Callable
 from gym.spaces import Discrete, Tuple  # for the discrete action space of the agents
 from gym.utils import seeding
 
-from tools import DeepChainMap
+from tools import DeepChainMap, type_check
 
 
 class Environment:
@@ -18,8 +18,8 @@ class Environment:
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_dim', '_densities', '_agent_types', '_agent_kwargs',
-                 '_max_pop', '_env', '_agents_dict', '_agent_named_properties',
-                 '_agents_tuple', '_np_seed']
+                 '_max_pop', '_env', '_agents_dict', '_agents_tuple',
+                 '_np_seed']  # _agent_named_properties
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
@@ -46,8 +46,8 @@ class Environment:
             self.agent_types = [self.agent_types]  # ensure iterable
 
         # get the names of agent types and create named tuple template
-        fn  = [at.__name__ for at in self.agent_types]
-        self._agent_named_properties = namedtuple('property', fn)
+        #fn  = [at.__name__ for at in self.agent_types]
+        #self._agent_named_properties = namedtuple('property', fn)
 
         # store agent_kwargs as attributes
         self.agent_kwargs = agent_kwargs
@@ -194,8 +194,19 @@ class GridPPM(Environment):
     New idea: lookup key is: LU, U, RU ... left up, up, right up, ...
     """
 
+    REWARDS = {"wrong_actiion": -1,  # for every wrong action
+               "default_prey": 2,  # for moving/eating
+               "default_predator": 1,  # for not dying in that round
+               "succesful_predator": 3,  # for eating
+               "offspring": 5,  # for succesful procreation
+               "death_predator": -3,  # starvation
+               "death_prey": -3}  # being eaten
+
+    __slots__ = ['action_lookup']
+
+    @type_check(argument_to_check="rewards", type_to_check=dict)
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
-                 densities: Union[float, tuple],
+                 densities: Union[float, tuple], rewards: dict=None,
                  **agent_kwargs: Union[int, float, None]):
         """Initialise the grid."""
         # call parent init function
@@ -208,10 +219,41 @@ class GridPPM(Environment):
         # populate the grid
         self._populate()
 
+        # update the rewards
+        if rewards is not None:
+            if isinstance(rewards, dict):
+                for k, v in rewards.items():
+                    if k not in self.REWARDS:
+                        warnings.warn("Key {} was not in rewards dictionary."
+                                      " Skipping update for this key..."
+                                      "".format(k), RuntimeWarning)
+                    else:
+                        self.REWARDS[k] = v
+
+            else:
+                raise TypeError("rewards should always be of type dict, but"
+                                " {} was given.".format(type(rewards)))
+
         # create the action space
         self.action_space = Tuple((Discrete(3),  # move, eat, procreate
                                    Discrete(9)))  # U, D, L, R ....
 
+        # setup of the action ACTION_LOOKUP
+        self.action_lookup = {0: self.move('LU'), 1: self.move('U'),
+                              2: self.move('RU'), 3: self.move('L'),
+                              4: self.move(''), 5: self.move('R'),
+                              6: self.move('LD'), 7: self.move('D'),
+                              8: self.move('RD'), 9: self.eat('LU'),
+                              10: self.eat('U'), 11: self.eat('RU'),
+                              12: self.eat('L'), 13: self.eat(''),
+                              14: self.eat('R'), 15: self.eat('LD'),
+                              16: self.eat('D'), 17: self.eat('RD'),
+                              18: self.eat('LU'), 19: self.procreate('U'),
+                              20: self.procreate('RU'),
+                              21: self.procreate('L'), 22: self.procreate(''),
+                              23: self.procreate('R'), 24: self.procreate('LD'),
+                              25: self.procreate('D'),
+                              26: self.procreate('RD')}
     # properties --------------------------------------------------------------
     # env
     @property
@@ -384,13 +426,14 @@ class GridPPM(Environment):
             if self.env[tuple(new_pos)] != '':
                 # to be excepted later
                 # raise RuntimeError("target is already occupied.")
-                pass  # TODO: penalty!
+                pass  # TODO: negative reward!
 
             else:
                 # FIXME: this won't work in the 1D case (if desired..)
                 # moving
                 self.env[tuple(new_pos)] = self.env[tuple(index)]
                 self.env[tuple(index)] = ''  # clearing the previous position
+                # TODO reward
 
         return move_agent
 
@@ -432,16 +475,14 @@ class GridPPM(Environment):
 
             if agent.kin == "Predator":
                 if not target_agent:
-                    pass  # TODO: penalty! don't try to eat empty space
+                    pass  # TODO: negative reward! don't try to eat empty space
 
                 # if agent targets not itself i.e. moves
                 elif delta.any() and (target_agent.kin == "Predator"):
-                    print("do not eat your own kind!")
-                    pass  # TODO: more penalty! one does not simply eat his own kind!
+                    pass  # TODO: negative reward! one does not simply eat his own kind!
 
                 elif not delta.any():
-                    print("don't try to eat yourself.")
-                    pass  # TODO: penalty! don't try to eat yourself.
+                    pass  # TODO: negative reward! don't try to eat yourself.
 
                 else:
                     roll = np.random.rand()
@@ -450,19 +491,22 @@ class GridPPM(Environment):
                         agent.food_reserve += 3  # FIXME: no hardcoding!
                         self._die(target_index)  # remove the eaten prey
                         self.move(target)(index)
+                        # TODO reward!
 
             elif agent.kin == "Prey":
                 # prey just eats
                 if target_uuid == '':
                     agent.food_reserve += 2  # FIXME: no hardcoding!
                     self.move(target)(index)
+                    # TODO reward
 
                 elif not delta.any():
                     print("just standing around and eating.")
                     self.food_reserve += 2  # just standing around and eating
+                    # TODO reward
 
                 else:
-                    pass  # TODO: penalty! a Prey can't eat other agents
+                    pass  # TODO: negative reward! a Prey can't eat other agents
 
             else:
                 # TODO: implement more agent types?
@@ -478,7 +522,7 @@ class GridPPM(Environment):
             """Try to have offspring in `target` with probability p_breed.
 
             `targets` are the same as in `move` and `eat`. If `target` is not
-            empty, there should be a penalty (TODO). Also for trying to
+            empty, there should be a negative reward (TODO). Also for trying to
             procreate without having enough food_reserve is penalized (TODO).
             """
             if not isinstance(index, np.ndarray):
@@ -502,10 +546,10 @@ class GridPPM(Environment):
 
             if agent.food_reserve >= 5:  # FIXME: no hardcoding!
                 if target_uuid != '':
-                    pass  # TODO: penalty!
+                    pass  # TODO: negative reward!
 
                 elif target_uuid == agent_uuid:
-                    pass # TODO penalty! don't try to create offspring in your own cell
+                    pass # TODO negative reward! don't try to create offspring in your own cell
 
                 else:
                     # try to breed
@@ -516,7 +560,8 @@ class GridPPM(Environment):
                         self.add_to_env(target_index=target_index,
                                         newborn=newborn)
                         agent.food_reserve -= 3  # reproduction costs enery
+                        # TODO reward
             else:
-                pass  # TODO: penalty!
+                pass  # TODO: negative reward!
 
         return procreate_and_move
