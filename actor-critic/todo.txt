@@ -4,9 +4,6 @@ agents:
     - advance the __str__ magic method!
 
 env:
-    - additionally the necessary functions step, reset, seed .. see gym
-    - conversion method to convert neighbourhood to array of ints
-    - one or two class constants containing the rewards
     - exchange all type test decorators with type_check, but handle the missing
       * symbols
 
@@ -18,8 +15,6 @@ plots:
 
 simulation:
     - how to store data during runtime? -> with open .....
-    - if a predator gets to eat a prey, the prey agent should be next in line
-    - write a proper yaml configuration file
 
 documentation:
     - cleanup of existing documentation
