@@ -20,9 +20,10 @@ import actor_critic as ac  # also ensures GPU usage when imported
 
 
 # load config files.....
-episodes = 42
+with open("simulation_config.yml", "r") as ymlfile:
+    cfg = yaml.load(ymlfile)
 
-env = GridPPM(...)  # to be initialized
+env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 
 
 # Initialize the policies and optimizer ---------------------------------------
