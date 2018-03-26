@@ -8,6 +8,7 @@ from gym.spaces import Discrete, Tuple  # for the discrete action space of the a
 from gym.utils import seeding
 
 from tools import DeepChainMap, type_check
+import actor_critic as ac
 
 
 class Environment:
@@ -199,10 +200,13 @@ class GridPPM(Environment):
                "default_predator": 1,  # for not dying in that round
                "succesful_predator": 3,  # for eating
                "offspring": 5,  # for succesful procreation
-               "death_predator": -3,  # starvation
+               "death_starvation": -3,  # starvation
                "death_prey": -3}  # being eaten
 
-    __slots__ = ['action_lookup']
+    KIN_LOOKUP = {"Predator": -1, "Prey": 1}
+
+    __slots__ = ['action_space', 'action_lookup', 'shuffled_agent_list',
+                 'state']
 
     @type_check(argument_to_check="rewards", type_to_check=dict)
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
@@ -216,8 +220,13 @@ class GridPPM(Environment):
         # initialise empty environment
         self._env = np.empty(self.max_pop, dtype='U33')  # FIXME: no hardcoding
 
-        # populate the grid
+        # initialize other variables
+        self.shuffled_agent_list = None
+        self.state = None
+
+        # populate the grid + initial shuffled agent list
         self._populate()
+        self.create_shuffled_agent_list()
 
         # update the rewards
         if rewards is not None:
@@ -233,10 +242,6 @@ class GridPPM(Environment):
             else:
                 raise TypeError("rewards should always be of type dict, but"
                                 " {} was given.".format(type(rewards)))
-
-        # create the action space
-        self.action_space = Tuple((Discrete(3),  # move, eat, procreate
-                                   Discrete(9)))  # U, D, L, R ....
 
         # setup of the action ACTION_LOOKUP
         self.action_lookup = {0: self.move('LU'), 1: self.move('U'),
@@ -254,6 +259,10 @@ class GridPPM(Environment):
                               23: self.procreate('R'), 24: self.procreate('LD'),
                               25: self.procreate('D'),
                               26: self.procreate('RD')}
+
+        # create the action space
+        self.action_space = Discrete(len(self.action_lookup))
+
     # properties --------------------------------------------------------------
     # env
     @property
@@ -363,7 +372,7 @@ class GridPPM(Environment):
         """Delete the given index from the environment and replace its position with empty string ''."""
         uuid = self.env[tuple(index)]
         if uuid != '':
-            del self._agents_dict[uuid]
+            del self._agents_dict[uuid]  # only deletes the dict entry
             self.env[tuple(index)] = ''
         else:
             warnings.warn("Trying to delete an empty cell", RuntimeWarning)
@@ -385,9 +394,51 @@ class GridPPM(Environment):
         self._add_to_agents_tuple(newborn=newborn)
         self.env[tuple(target_index)] = newborn.uuid  # we assume that the index is not occupied
 
+    # create shuffled list of agents
+    def create_shuffled_agent_list(self) -> list:
+        """Return a shuffled list of (y,x) index arrays where the agents (at list creation time) are."""
+        y, x = np.where(self.env != '')  # get indices
+        agent_list = list(np.array((y, x)).T)  # create list
+        np.random.shuffle(agent_list)
+
+        self.shuffled_agent_list = agent_list
+
+    @type_check(argument_to_check="uuid", type_to_check=str)
+    def _uuid_to_int(self, *, uuid: str) -> int:
+        """Return a integer representation of the uuid.
+
+        Predator == -1
+        Prey     ==  1
+        ''       ==  0
+        """
+        ret = 0  # initialize return value
+        if uuid != "":
+            ag = self._agents_dict[uuid]
+            ret = self.KIN_LOOKUP[ag.kin]  # if agent, then set value
+
+        return ret
+
+    # a mapping from index to state
+    @type_check(argument_to_check="index", type_to_check=np.ndarray)
+    def index_to_state(self, *, index: np.ndarray) -> tuple:
+        """Return neighbourhood and food reserve for a given index.
+
+        If agent was prey and got eaten, index points to '' in env. The return for food_reserve is then None.
+        """
+        neighbourhood, _ = self.neighbourhood(index=index)
+        state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
+
+        # check if agent actually exists FIXME: hardcoding
+        if neighbourhood[4] == "":  # agent died, i.e. got eaten or starved
+            state.append(None)  # there is no food_reserve
+        else:
+            state.append(self._agents_dict[neighbourhood[4]].food_reserve)
+
+        return state
+
     # neighbourhood
     @_index_test_ndarray
-    def neighbourhood(self, index: np.ndarray) -> np.ndarray:
+    def neighbourhood(self, index: np.ndarray) -> tuple:
         """Return the 9 neighbourhood for a given index and the index values."""
         # "up" or "down" in the sense of up and down on screen
         delta = np.array([[-1, -1], [-1, 0], [-1, 1],  # UL, U, UR
@@ -489,6 +540,7 @@ class GridPPM(Environment):
                     if roll <= agent.p_eat:
                         print("p_roll = {}".format(roll))
                         agent.food_reserve += 3  # FIXME: no hardcoding!
+                        target_agent.got_eaten = True  # set flag
                         self._die(target_index)  # remove the eaten prey
                         self.move(target)(index)
                         # TODO reward!
@@ -549,7 +601,7 @@ class GridPPM(Environment):
                     pass  # TODO: negative reward!
 
                 elif target_uuid == agent_uuid:
-                    pass # TODO negative reward! don't try to create offspring in your own cell
+                    pass  # TODO negative reward! don't try to create offspring in your own cell
 
                 else:
                     # try to breed
@@ -565,3 +617,52 @@ class GridPPM(Environment):
                 pass  # TODO: negative reward!
 
         return procreate_and_move
+
+    # methods for actor-critic ------------------------------------------------
+    def reset(self) -> tuple:
+        """Reset the environment and return the state and the object of the first popped element of the shuffled agents list."""
+        # create named tuple template
+        agnts = namedtuple('agent_types', [a.__name__ for a in
+                           self.agent_types])
+
+        # set to empty dicts
+        self._agents_tuple = agnts(*[{} for _ in self.agent_types])
+        self._agents_dict = DeepChainMap(*self._agents_tuple)
+
+        # clear Environment
+        self._env = np.empty(self.max_pop, dtype='U33')  # FIXME: no hardcoding
+
+        # populate the grid and agent dicts
+        self._populate()
+
+        # create new shuffled agents list
+        self.create_shuffled_agent_list()
+
+        # pop list and return state
+        idx = self.shuffled_agent_list.pop()
+        self.state = self.index_to_state(index=idx)
+
+        return self.state, idx
+
+    def step(self, *, model: Callable, agent: Callable, index: np.ndarray, action: int) -> tuple:
+        """The method starts from the current state, takes an action and records the return of it."""
+        state = self.state
+        agent.food_reserve -= 1  # reduce food_reserve
+
+        if hasattr(agent, "got_eaten"):
+            if agent.got_eaten:
+                reward = self.REWARDS['death_prey']
+
+        if agent.food_reserve <= 0:
+            self._die(index=index)
+            reward = self.REWARDS['death_starvation']  # overwrites death_prey
+
+        else:
+            act = self.action_lookup[action]  # select action from lookup
+            reward = act(index=index)  # get reward for acting
+            # TODO implement the rewards in move, eat, procreate
+            # TODO implement new state here, i.e. new random index
+        if len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey) is 0:
+            done = True  # at least one species died out
+
+        return reward, state, done
