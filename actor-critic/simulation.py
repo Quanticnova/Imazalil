@@ -3,6 +3,7 @@
 import yaml
 import numpy as np
 import numpy.random as rd
+#import warnings
 # matplotlib?
 #from collections import namedtuple
 
@@ -15,22 +16,38 @@ import torch.optim as optim
 from agents import Predator, Prey
 from environment import GridPPM
 from tools import timestamp
-from actor_critic import Policy  # also ensures GPU usage when imported
+import actor_critic as ac  # also ensures GPU usage when imported
 
 
 # load config files.....
+episodes = 42
+
+env = GridPPM(...)  # to be initialized
 
 
 # Initialize the policies and optimizer ---------------------------------------
-PreyModel = Policy()
-PredatorModel = Policy()
+PreyModel = ac.Policy()
+PredatorModel = ac.Policy()
 PreyOptimizer = optim.Adam(PreyModel.parameters(), lr=3e-2)  # whatever the numbers...
 PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=3e-2)
 
 
 # main loop
 def main():
-    """To be implemented."""
+    """Trying to pseudo code here."""
+
+    for i_eps in range(episodes):  # for now
+        state, idx = env.reset()  # returns state and object of random agent
+
+        while(env.shuffled_agent_list):
+            ag = env._agents_dict[env.env[tuple(idx)]]  # agent object
+            # select model and action
+            model = PreyModel if ag.kin == "Prey" else PredatorModel
+            action = ac.select_action(model=model, state=state)
+            # take a step
+            state, reward, done = env.step(model=model, agent=ag,
+                                           index=idx, action=action)
+
 
 
 if __name__ == "__main__":
