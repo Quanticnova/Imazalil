@@ -276,6 +276,18 @@ class Predator(Agent):
         # set new (property managed) attributes
         self.p_eat = p_eat
 
+    # magic method ------------------------------------------------------------
+    def __str__(self) -> str:
+        """Return the agents properties."""
+        props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
+                 "max_food_res: {}\t p_eat: {}".format(self.kin, self.uuid,
+                                                       self.generation,
+                                                       self.food_reserve,
+                                                       self.max_food_reserve,
+                                                       self.p_eat))
+
+        return props
+
     # properties --------------------------------------------------------------
     @property
     def p_eat(self) -> float:
@@ -329,6 +341,18 @@ class Prey(Agent):
 
         # set new (property managed) attributes
         self.p_flee = p_flee
+
+    # magic method ------------------------------------------------------------
+    def __str__(self) -> str:
+        """Return the agents properties."""
+        props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
+                 "max_food_res: {}\t p_flee: {}".format(self.kin, self.uuid,
+                                                        self.generation,
+                                                        self.food_reserve,
+                                                        self.max_food_reserve,
+                                                        self.p_flee))
+
+        return props
 
     # properties --------------------------------------------------------------
     @property
