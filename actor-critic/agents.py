@@ -309,7 +309,7 @@ class Prey(Agent):
     HEIRSHIP = Agent.HEIRSHIP + ['p_flee']
 
     # slots -------------------------------------------------------------------
-    __slots__ = ['_p_flee']
+    __slots__ = ['_p_flee', '_got_eaten']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
@@ -325,6 +325,7 @@ class Prey(Agent):
 
         # initialise new attributes
         self._p_flee = 0.0
+        self._got_eaten = False
 
         # set new (property managed) attributes
         self.p_flee = p_flee
@@ -347,3 +348,18 @@ class Prey(Agent):
 
         else:
             self._p_flee = p_flee
+
+    @property
+    def got_eaten(self) -> bool:
+        """Flag if prey was eaten (needed for actor-critic)."""
+        return self._got_eaten
+
+    @got_eaten.setter
+    def got_eaten(self, got_eaten: bool) -> None:
+        """Set if prey got eaten."""
+        if not isinstance(got_eaten, bool):
+            raise TypeError("got_eaten must be of type bool, but {} was given."
+                            "".format(type(got_eaten)))
+
+        else:
+            self._got_eaten = got_eaten

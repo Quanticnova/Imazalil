@@ -34,7 +34,10 @@ class Policy(nn.Module):
 
     # init --------------------------------------------------------------------
     def __init__(self, inputs=10, outputs=27, *args, **kwargs):
-        """Initialize the neural network and some of its attributes."""
+        """Initialize the neural network and some of its attributes.
+
+        Default input of 10 for 9 neighbourhood and food reserve.
+        """
         super(Policy, self).__init__()  # call nn.Modules init
 
         # initialize attributes
