@@ -41,6 +41,7 @@ def main():
         state, idx = env.reset()  # returns state and object of random agent
 
         for _ in range(cfg['Sim']['steps']):
+            print(":: Episode {}, Step {}".format(i_eps, _))
             while(env.shuffled_agent_list):
                 ag = env._agents_dict[env.env[tuple(idx)]]  # agent object
                 # select model and action
@@ -58,6 +59,8 @@ def main():
 
             if done:
                 break
+            print(":: Plotting current state...")
+            env.render(episode=i_eps, step=_, **cfg['Plot'])
             env.create_shuffled_agent_list()
             print(":: Created new shuffled agents list with {} individuals."
                   "".format(len(env.shuffled_agent_list)))

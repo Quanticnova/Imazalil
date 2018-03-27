@@ -2,12 +2,14 @@
 import warnings
 
 import numpy as np
+import numpy.ma as ma
+import matplotlib.pyplot as plt
 from collections import namedtuple
 from typing import Union, Callable
 from gym.spaces import Discrete, Tuple  # for the discrete action space of the agents
 from gym.utils import seeding
 
-from tools import DeepChainMap, type_check
+from tools import DeepChainMap, type_check, timestamp
 import actor_critic as ac
 
 
@@ -684,3 +686,35 @@ class GridPPM(Environment):
             done = False  # no harm in being explicit
 
         return reward, self.state, done, index
+
+    def render(self, *, episode: int, step: int, figsize: tuple, filepath: str,
+               dpi: int, fmt: str, **kwargs):
+        """The method visualizes the simulations."""
+        plotarr = np.zeros(shape=np.shape(self.env))
+        y, x = np.where(self.env != '')
+
+        for idc in np.array([y, x]).T:
+            plotarr[tuple(idc)] = self._uuid_to_int(uuid=self.env[tuple(idc)])
+
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111)
+
+        im = ax.imshow(ma.masked_equal(plotarr, 0), cmap='viridis', vmin=-1,
+                       vmax=1)
+        cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
+                            ticks=[-1, 0, 1], label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
+        cbar.ax.set_yticklabels(['Predator', 'Empty', 'Prey'])
+
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        info = " Prey: {}, Pred: {}".format(len(self._agents_tuple.Prey),
+                                            len(self._agents_tuple.Predator))
+
+        ax.set_title("Episode: {}, Step: {} |".format(episode, step) + info)
+
+        filename = "{:0>3}_{:0>3}_{}.png".format(episode, step, timestamp())
+        fig.savefig(filepath + filename, dpi=dpi, format=fmt)
+        plt.close(fig)
