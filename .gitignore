@@ -1,5 +1,6 @@
 __pycache__/*
 actor-critic/__pycache__/*
+actor-critic/plots/*
 .ipynb_checkpoints/* 
 _testsuite/.ipynb_checkpoints/*
 plots/*

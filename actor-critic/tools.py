@@ -44,7 +44,7 @@ def type_check(*, argument_to_check: str, type_to_check: type):
                 raise KeyError("{} was not found in function kwargs.".format(argument_to_check))
 
             # if everything went fine until now, we can call the function
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
 
         return wrapped_func
     return wrap
