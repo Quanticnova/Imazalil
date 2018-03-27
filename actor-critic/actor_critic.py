@@ -91,7 +91,7 @@ def finish_episode(*, model, optimizer, gamma: float=0.1):
         rewards.append(R)  # append + [::-1] is faster than insert(0,*)
 
     rewards = torch.Tensor(rewards[::-1])  # backwardss
-    rewards = (rewards - rewards.mean()) / (rewards.st() + eps)  # why eps???
+    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)  # why eps???
 
     # now interate over all probability-state value-reward pairs
     for (log_prob, state_value), r in zip(saved_actions, rewards):

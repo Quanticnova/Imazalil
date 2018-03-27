@@ -425,7 +425,7 @@ class GridPPM(Environment):
         else:
             state.append(self._agents_dict[neighbourhood[4]].food_reserve)
 
-        return state
+        return np.array(state)
 
     # neighbourhood
     @_index_test_ndarray
@@ -532,12 +532,14 @@ class GridPPM(Environment):
                 else:
                     roll = np.random.rand()
                     if roll <= agent.p_eat:
-                        print("p_roll = {}".format(roll))
                         agent.food_reserve += 3  # FIXME: no hardcoding!
                         target_agent.got_eaten = True  # set flag
                         self._die(target_index)  # remove the eaten prey
                         self.move(target)(index)
                         return self.REWARDS['succesful_predator']  # hooray!
+
+                    else:
+                        return self.REWARDS['default_predator']  # at least ...
 
             elif agent.kin == "Prey":
                 # prey just eats
@@ -547,8 +549,7 @@ class GridPPM(Environment):
                     return self.REWARDS['default_prey']  # for eating and moving
 
                 elif not delta.any():
-                    print("just standing around and eating.")
-                    self.food_reserve += 2  # just standing around and eating
+                    agent.food_reserve += 2  # just standing around and eating
                     return self.REWARDS['default_prey']
 
                 else:
@@ -612,6 +613,12 @@ class GridPPM(Environment):
                                         newborn=newborn)
                         agent.food_reserve -= 3  # reproduction costs enery
                         return self.REWARDS['offspring']  # a new life...
+
+                    else:
+                        if agent.kin == "Prey":
+                            return self.REWARDS['default_prey']
+                        else:
+                            return self.REWARDS['default_prey']
             else:
                 # can't procreate without enough energy!
                 return self.REWARDS['wrong_action']
@@ -662,7 +669,7 @@ class GridPPM(Environment):
             act = self.action_lookup[action]  # select action from lookup
             reward = act(index=index)  # get reward for acting
             # for debugging: checking whether action rewards are valid
-            if isinstance(reward, None):
+            if reward is None:
                 raise RuntimeError("reward should not be of type None! The"
                                    " last action was {} by agent {}"
                                    "".format(act, agent))
@@ -671,7 +678,7 @@ class GridPPM(Environment):
         index = self.shuffled_agent_list.pop()
         self.state = self.index_to_state(index=index)  # new state
 
-        if len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey) is 0:
+        if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
         else:
             done = False  # no harm in being explicit
