@@ -15,6 +15,7 @@ Sim:
     episodes:           100
 
 Plot:
+    render:             True
     filepath:           "plots/"
     figsize:            !!python/tuple [9,12]
     format:             "png"
