@@ -36,19 +36,35 @@ PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=3e-2)
 # main loop
 def main():
     """Trying to pseudo code here."""
-
-    for i_eps in range(episodes):  # for now
+    for i_eps in range(cfg['Sim']['episodes']):  # for now
+        print(":: Environment resetting now...")
         state, idx = env.reset()  # returns state and object of random agent
 
-        while(env.shuffled_agent_list):
-            ag = env._agents_dict[env.env[tuple(idx)]]  # agent object
-            # select model and action
-            model = PreyModel if ag.kin == "Prey" else PredatorModel
-            action = ac.select_action(model=model, state=state)
-            # take a step
-            state, reward, done = env.step(model=model, agent=ag,
-                                           index=idx, action=action)
+        for _ in range(cfg['Sim']['steps']):
+            print(":: Created new shuffled agents list with {} individuals."
+                  "".format(len(env.shuffled_agent_list)))
+            env.create_shuffled_agent_list()
 
+            while(env.shuffled_agent_list):
+                ag = env._agents_dict[env.env[tuple(idx)]]  # agent object
+                # select model and action
+                model = PreyModel if ag.kin == "Prey" else PredatorModel
+                action = ac.select_action(model=model, state=state)
+                # take a step
+                state, reward, done, idx = env.step(model=model, agent=ag,
+                                                    index=idx, action=action)
+                model.rewards.append(reward)
+                if done:
+                    print(":: Breakpoint reached: Predators: {}\t Prey: {}"
+                          "".format(len(env._agents_tuple.Predator),
+                                    len(env.agents_tuple.Prey)))
+                    break
+
+        if done:
+            break
+
+        ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer)
+        ac.finish_episode(model=PredatorModel, optimizer=PredatorOptimizer)
 
 
 if __name__ == "__main__":
