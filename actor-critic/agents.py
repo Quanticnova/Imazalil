@@ -346,11 +346,13 @@ class Prey(Agent):
     def __str__(self) -> str:
         """Return the agents properties."""
         props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
-                 "max_food_res: {}\t p_flee: {}".format(self.kin, self.uuid,
-                                                        self.generation,
-                                                        self.food_reserve,
-                                                        self.max_food_reserve,
-                                                        self.p_flee))
+                 "max_food_res: {}\t p_flee: {}\t"
+                 " got_eaten: {}".format(self.kin, self.uuid,
+                                         self.generation,
+                                         self.food_reserve,
+                                         self.max_food_reserve,
+                                         self.p_flee,
+                                         self.got_eaten))
 
         return props
 

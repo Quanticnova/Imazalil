@@ -73,7 +73,7 @@ def select_action(*, model, state):
 
 
 # defining what to do after the episode finished.
-def finish_episode(*, model, optimizer, gamma: float=0.1):
+def finish_episode(*, model, optimizer, gamma: float=0.1, prnt: str=None):
     """Calculate the losses and backprop them through the models NN."""
     # initialize a few variables
     R = 0  # The discounted reward
@@ -110,6 +110,10 @@ def finish_episode(*, model, optimizer, gamma: float=0.1):
     # backpropagate the loss
     loss.backward()
     optimizer.step()
+
+    if prnt is not None:
+        # print mean rewards
+        print(": mean rewards for {}: {}".format(prnt, np.mean(model.rewards)))
 
     # clear memory from unneeded variables
     del model.rewards[:]

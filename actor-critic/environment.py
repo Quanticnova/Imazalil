@@ -22,7 +22,7 @@ class Environment:
     # slots -------------------------------------------------------------------
     __slots__ = ['_dim', '_densities', '_agent_types', '_agent_kwargs',
                  '_max_pop', '_env', '_agents_dict', '_agents_tuple',
-                 '_np_seed']  # _agent_named_properties
+                 '_np_random']  # _agent_named_properties
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
@@ -37,7 +37,7 @@ class Environment:
         self._densities = None
         self._agent_kwargs = {}
         self._agent_types = None
-        self._np_seed = None
+        self._np_random = None
 
         # set property managed attribute(s)
         self.dim = dim
@@ -199,7 +199,7 @@ class GridPPM(Environment):
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
     __slots__ = ['action_space', 'action_lookup', 'shuffled_agent_list',
-                 'state']
+                 'state', 'eaten_prey']
 
     @type_check(argument_to_check="rewards", type_to_check=dict)
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
@@ -216,6 +216,7 @@ class GridPPM(Environment):
         # initialize other variables
         self.shuffled_agent_list = None
         self.state = None
+        self.eaten_prey = []
 
         # populate the grid + initial shuffled agent list
         self._populate()
@@ -413,7 +414,7 @@ class GridPPM(Environment):
 
     # a mapping from index to state
     @type_check(argument_to_check="index", type_to_check=np.ndarray)
-    def index_to_state(self, *, index: np.ndarray) -> tuple:
+    def index_to_state(self, *, index: np.ndarray, ag: Callable=None) -> tuple:
         """Return neighbourhood and food reserve for a given index.
 
         If agent was prey and got eaten, index points to '' in env. The return for food_reserve is then None.
@@ -422,8 +423,10 @@ class GridPPM(Environment):
         state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
 
         # check if agent actually exists FIXME: hardcoding
-        if neighbourhood[4] == "":  # agent died, i.e. got eaten or starved
-            state.append(None)  # there is no food_reserve
+        if ag is not None:
+            state.append(ag.food_reserve)  # got handed an agent
+        elif neighbourhood[4] == "":  # agent died, i.e. got eaten or starved
+            state.append(None)  # there is no food_reserve FIXME causes problems
         else:
             state.append(self._agents_dict[neighbourhood[4]].food_reserve)
 
@@ -464,21 +467,23 @@ class GridPPM(Environment):
 
             # check if move is possible
             delta = self._target_to_value(target)
-            new_pos = (index + delta) % self.dim  # taking care of bounds
-            if self.env[tuple(new_pos)] != '':
+            target_index = (index + delta) % self.dim  # taking care of bounds
+            if self.env[tuple(target_index)] != '':
                 return self.REWARDS['wrong_action']  # negative
 
             else:
                 # FIXME: this won't work in the 1D case (if desired..)
                 # moving
-                self.env[tuple(new_pos)] = self.env[tuple(index)]
+                self.env[tuple(target_index)] = self.env[tuple(index)]
                 self.env[tuple(index)] = ''  # clearing the previous position
                 # reward based on kin type
-                if self._agents_dict[self.env[tuple(new_pos)]].kin == "Prey":
+                """
+                if self._agents_dict[self.env[tuple(target_index)]].kin == "Prey":
                     return self.REWARDS['default_prey']
                 else:
                     return self.REWARDS['default_predator']
-
+                """
+                return self.REWARDS['default_prey']
         return move_agent
 
     # eating
@@ -535,9 +540,10 @@ class GridPPM(Environment):
                     roll = np.random.rand()
                     if roll <= agent.p_eat:
                         agent.food_reserve += 3  # FIXME: no hardcoding!
+                        self.eaten_prey.append((target_index, target_agent))
                         target_agent.got_eaten = True  # set flag
                         self._die(target_index)  # remove the eaten prey
-                        self.move(target)(index)
+                        self.move(target)(target_index)
                         return self.REWARDS['succesful_predator']  # hooray!
 
                     else:
@@ -623,7 +629,8 @@ class GridPPM(Environment):
                             return self.REWARDS['default_prey']
             else:
                 # can't procreate without enough energy!
-                return self.REWARDS['wrong_action']
+                # return self.REWARDS['wrong_action']
+                return self.REWARDS['default_prey']  # testing...
 
         return procreate_and_move
 
@@ -647,27 +654,30 @@ class GridPPM(Environment):
         # create new shuffled agents list
         self.create_shuffled_agent_list()
 
+        # empty eaten prey list
+        self.eaten_prey = []
+
         # pop list and return state
         index = self.shuffled_agent_list.pop()
         self.state = self.index_to_state(index=index)
 
         return self.state, index
 
-    def step(self, *, model: Callable, agent: Callable, index: np.ndarray, action: int) -> tuple:
+    def step(self, *, model: Callable, agent: Callable, index: np.ndarray, action: int, returnidx: np.ndarray=None) -> tuple:
         """The method starts from the current state, takes an action and records the return of it."""
         reward = 0  # initialize reward
-        state = self.state  # might be needed for render? TODO
+        # state = self.state  # might be needed for render? TODO
         agent.food_reserve -= 1  # reduce food_reserve
 
         if hasattr(agent, "got_eaten"):
             if agent.got_eaten:
                 reward = self.REWARDS['death_prey']
 
-        if agent.food_reserve <= 0 and reward == 0:  # if agent not dead already
+        if (agent.food_reserve <= 0) and (reward == 0):  # if agent not dead already
             self._die(index=index)
             reward = self.REWARDS['death_starvation']  # more death!
 
-        else:
+        elif reward == 0:
             act = self.action_lookup[action]  # select action from lookup
             reward = act(index=index)  # get reward for acting
             # for debugging: checking whether action rewards are valid
@@ -676,16 +686,23 @@ class GridPPM(Environment):
                                    " last action was {} by agent {}"
                                    "".format(act, agent))
 
-        # new index
-        index = self.shuffled_agent_list.pop()
-        self.state = self.index_to_state(index=index)  # new state
-
         if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
         else:
             done = False  # no harm in being explicit
 
-        return reward, self.state, done, index
+        if returnidx is not None:  # keep the old index in the system
+            self.state = self.index_to_state(index=returnidx)
+            return reward, self.state, done, returnidx
+
+        else:
+            # new index, if cell is empty due to eaten prey, repop
+            newindex = self.shuffled_agent_list.pop()
+            while(self.env[tuple(newindex)] == ""):
+                newindex = self.shuffled_agent_list.pop()
+
+            self.state = self.index_to_state(index=newindex)  # new state
+            return reward, self.state, done, newindex
 
     def render(self, *, episode: int, step: int, figsize: tuple, filepath: str,
                dpi: int, fmt: str, **kwargs):
@@ -702,7 +719,7 @@ class GridPPM(Environment):
         im = ax.imshow(ma.masked_equal(plotarr, 0), cmap='viridis', vmin=-1,
                        vmax=1)
         cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
-                            ticks=[-1, 0, 1], label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
+                            ticks=[-1, 0, 1])
         cbar.ax.set_yticklabels(['Predator', 'Empty', 'Prey'])
 
         ax.set_xticklabels([])
@@ -715,6 +732,6 @@ class GridPPM(Environment):
 
         ax.set_title("Episode: {}, Step: {} |".format(episode, step) + info)
 
-        filename = "{:0>3}_{:0>3}_{}.png".format(episode, step, timestamp())
+        filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, step)
         fig.savefig(filepath + filename, dpi=dpi, format=fmt)
         plt.close(fig)

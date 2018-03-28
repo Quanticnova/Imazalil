@@ -24,7 +24,7 @@ with open("simulation_config.yml", "r") as ymlfile:
     cfg = yaml.load(ymlfile)
 
 env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
-
+env.seed(12345678)
 
 # Initialize the policies and optimizer ---------------------------------------
 PreyModel = ac.Policy()
@@ -37,19 +37,40 @@ PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=3e-2)
 def main():
     """Trying to pseudo code here."""
     for i_eps in range(cfg['Sim']['episodes']):  # for now
-        print(":: Environment resetting now...")
+        print("\n: Environment resetting now...")
         state, idx = env.reset()  # returns state and object of random agent
+        print("::: Plotting current state...")
+        env.render(episode=i_eps, step=-1, **cfg['Plot'])
 
         for _ in range(cfg['Sim']['steps']):
             print(":: Episode {}, Step {}".format(i_eps, _))
             while(env.shuffled_agent_list):
-                ag = env._agents_dict[env.env[tuple(idx)]]  # agent object
-                # select model and action
-                model = PreyModel if ag.kin == "Prey" else PredatorModel
-                action = ac.select_action(model=model, state=state)
-                # take a step
-                reward, state, done, idx = env.step(model=model, agent=ag,
-                                                    index=idx, action=action)
+                # if any prey got eaten last round, use it
+                if len(env.eaten_prey) != 0:
+                    tmpidx, ag = env.eaten_prey.pop()
+                    env.state = env.index_to_state(index=tmpidx, ag=ag)
+                    if env.state[-1] is None:
+                        env.state[-1] = int(ag.food_reserve)
+                    state = env.state
+                    model = PreyModel
+                    action = ac.select_action(model=model, state=state)
+                    reward, state, done, idx = env.step(model=model,
+                                                        agent=ag,
+                                                        index=tmpidx,
+                                                        returnidx=idx,
+                                                        action=action)
+                else:
+                    ag = env._agents_dict[env.env[tuple(idx)]]  # agent object
+
+                    # select model and action
+                    model = PreyModel if ag.kin == "Prey" else PredatorModel
+                    action = ac.select_action(model=model, state=state)
+                    # take a step
+                    reward, state, done, idx = env.step(model=model,
+                                                        agent=ag,
+                                                        index=idx,
+                                                        action=action)
+
                 model.rewards.append(reward)
                 if done:
                     print(":: Breakpoint reached: Predators: {}\t Prey: {}"
@@ -59,18 +80,25 @@ def main():
 
             if done:
                 break
-            print(":: Plotting current state...")
+            print("::: Plotting current state...")
             env.render(episode=i_eps, step=_, **cfg['Plot'])
             env.create_shuffled_agent_list()
-            print(":: Created new shuffled agents list with {} individuals."
+            print("::: Created new shuffled agents list with {} individuals."
                   "".format(len(env.shuffled_agent_list)))
+            # mean value output
+            gens = []
+            for a in env._agents_dict.values():
+                gens.append(a.generation)
+            print("::: Mean generation: {}".format(np.mean(gens)))
             idx = env.shuffled_agent_list.pop()
             env.state = env.index_to_state(index=idx)
             state = env.state
 
-        print(":: optimizing now...")
-        ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer)
-        ac.finish_episode(model=PredatorModel, optimizer=PredatorOptimizer)
+        print(": optimizing now...")
+        ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer, gamma=0.01,
+                          prnt="Preys")
+        ac.finish_episode(model=PredatorModel, optimizer=PredatorOptimizer,
+                          gamma=0.01, prnt="Predators")
 
 
 if __name__ == "__main__":

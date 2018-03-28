@@ -1,15 +1,21 @@
 # configuration file for the actor-critic PPM
 Model:
-    dim:                !!python/tuple [128, 128]  # dimensionality
-    densities:          !!python/tuple [0.2, 0.215]  # Predator, Prey
-    food_reserve:       4
-    max_food_reserve:   8
-    generation:         0
-    p_breed:            0.2
-    p_flee:             0.4
-    p_eat:              0.6  # = 1-p_flee
-    rewards:            {} # kept empty for the moment
-
+    dim:                  !!python/tuple [128, 128]  # dimensionality
+    densities:            !!python/tuple [0.2, 0.215]  # Predator, Prey
+    food_reserve:         4
+    max_food_reserve:     8
+    generation:           0
+    p_breed:              0.2
+    p_flee:               0.4
+    p_eat:                0.6  # = 1-p_flee
+    rewards:
+      wrong_action:       -1
+      default_prey:       1
+      default_predator:   1
+      succesful_predator: 3
+      offspring:          20
+      death_starvation:   -5
+      death_prey:         -5
 Sim:
     steps:              1000
     episodes:           100
