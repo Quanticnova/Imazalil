@@ -553,7 +553,7 @@ class GridPPM(Environment):
                 # prey just eats
                 if target_uuid == '':
                     agent.food_reserve += 2  # FIXME: no hardcoding!
-                    self.move(target)(index)
+                    self.move(target)(target_index)
                     return self.REWARDS['default_prey']  # for eating and moving
 
                 elif not delta.any():
