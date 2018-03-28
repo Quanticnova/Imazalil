@@ -1,7 +1,10 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
 import uuid
-from typing import Callable
+from collections import namedtuple
+from typing import Callable, NamedTuple
+
+memory = namedtuple('Memory', ('States', 'Rewards', 'Actions'))
 
 
 class Agent:
@@ -25,12 +28,12 @@ class Agent:
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_p_breed', '_uuid', '_kin', '_kwargs']
+                 '_p_breed', '_uuid', '_kin', '_kwargs', '_memory']
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
                  generation: int=None, p_breed: float=1.0, kin: str=None,
-                 **kwargs):
+                 mem: tuple=None, **kwargs):
         """Initialise the agent instance."""
         # Initialize values
         self._food_reserve = 0
@@ -40,6 +43,7 @@ class Agent:
         self._p_breed = 1.0
         self._kin = None
         self._kwargs = kwargs  # just set the value directly here.
+        self._memory = None
 
         # Set property managed attributes
         self.food_reserve = food_reserve
@@ -57,6 +61,11 @@ class Agent:
 
         if generation is not None:
             self.generation = generation
+
+        if mem is not None:
+            self.memory = mem
+        else:
+            self.memory = memory([], [], [])  # initialize empty lists
 
     # magic method ------------------------------------------------------------
     def __str__(self) -> str:
@@ -205,6 +214,24 @@ class Agent:
 
         else:
             self._kin = kin
+
+    # memory for learning
+    @property
+    def memory(self) -> NamedTuple:
+        """Hold the history of all states, rewards and actions for a single agent."""
+        return self._memory
+
+    @memory.setter
+    def memory(self, memory: NamedTuple) -> None:
+        """Set the NamedTuple for the memory."""
+        if not isinstance(memory, tuple):
+            raise TypeError("memory must be of type tuple, but {} was given."
+                            "".format(type(memory)))
+        elif self._memory is not None:
+            raise RuntimeError("memory already set. This should not have "
+                               "happened.")
+        else:
+            self._memory = memory
 
     # staticmethods -----------------------------------------------------------
     @staticmethod

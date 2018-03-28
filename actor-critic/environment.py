@@ -5,12 +5,14 @@ import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
 from collections import namedtuple
-from typing import Union, Callable
+from typing import Union, Callable, NamedTuple
 from gym.spaces import Discrete, Tuple  # for the discrete action space of the agents
 from gym.utils import seeding
 
 from tools import DeepChainMap, type_check, timestamp
 import actor_critic as ac
+
+hist = namedtuple('history', ('Predator', 'Prey'))
 
 
 class Environment:
@@ -22,11 +24,11 @@ class Environment:
     # slots -------------------------------------------------------------------
     __slots__ = ['_dim', '_densities', '_agent_types', '_agent_kwargs',
                  '_max_pop', '_env', '_agents_dict', '_agents_tuple',
-                 '_np_random']  # _agent_named_properties
+                 '_np_random', '_history']  # _agent_named_properties
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
-                 densities: Union[float, tuple],
+                 densities: Union[float, tuple], history: tuple=None,
                  **agent_kwargs: Union[int, float, None]):
         """Initialize the environment.
 
@@ -38,6 +40,7 @@ class Environment:
         self._agent_kwargs = {}
         self._agent_types = None
         self._np_random = None
+        self._history = None  # keeps every memory of every agent
 
         # set property managed attribute(s)
         self.dim = dim
@@ -64,6 +67,12 @@ class Environment:
         # initialise with empty dicts
         self._agents_tuple = agnts(*[{} for _ in self.agent_types])
         self._agents_dict = DeepChainMap(*self._agents_tuple)
+
+        # initialize history
+        if history:
+            self.history = history
+        else:
+            self.history = hist([], [])  # empty history
 
     # properties -------------------------------------------------------------
     # dimensions
@@ -157,6 +166,23 @@ class Environment:
     def max_pop(self) -> int:
         """Return the maximum population of the grid."""
         return self._max_pop
+
+    @property
+    def history(self) -> NamedTuple:
+        """Return the list of recorded deeds."""
+        return self._history
+
+    @history.setter
+    def history(self, history: tuple) -> None:
+        """Define the past by setting history."""
+        if not isinstance(history, tuple):
+            raise TypeError("history must be of type list but {} was given."
+                            "".format(type(history)))
+        elif self.history is not None:
+            raise RuntimeError("history has already started, there is no "
+                               "forgiveness anymore.")
+        else:
+            self._history = history
 
     # staticmethods -----------------------------------------------------------
 
@@ -367,7 +393,11 @@ class GridPPM(Environment):
         """Delete the given index from the environment and replace its position with empty string ''."""
         uuid = self.env[tuple(index)]
         if uuid != '':
+            ag = self._agents_dict[uuid]
+            # record history in the right list
+            getattr(self.history, ag.kin).append(ag.memory)
             del self._agents_dict[uuid]  # only deletes the dict entry
+            del ag
             self.env[tuple(index)] = ''
         else:
             warnings.warn("Trying to delete an empty cell", RuntimeWarning)
@@ -388,6 +418,12 @@ class GridPPM(Environment):
         """
         self._add_to_agents_tuple(newborn=newborn)
         self.env[tuple(target_index)] = newborn.uuid  # we assume that the index is not occupied
+
+    # index to agent
+    @_index_test_ndarray
+    def _idx_to_ag(self, index: np.ndarray) -> Callable:
+        """Return the agent object corresponding to a given index."""
+        return self._agents_dict[self.env[tuple(index)]]
 
     # create shuffled list of agents
     def create_shuffled_agent_list(self) -> list:
@@ -420,18 +456,32 @@ class GridPPM(Environment):
 
         If agent was prey and got eaten, index points to '' in env. The return for food_reserve is then None.
         """
-        neighbourhood, _ = self.neighbourhood(index=index)
-        state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
-
-        # check if agent actually exists FIXME: hardcoding
+        # it can happen, that the index points to an empty space in the environment. This is due to the fact, that an index in the shuffled list doesn't get removed, if a prey got eaten. thus, empty cells are just ignored.
+        state = []
+        # check if agent has memory:
         if ag is not None:
-            state.append(ag.food_reserve)  # got handed an agent
-        elif neighbourhood[4] == "":  # agent died, i.e. got eaten or starved
-            state.append(None)  # there is no food_reserve FIXME causes problems
-        else:
-            state.append(self._agents_dict[neighbourhood[4]].food_reserve)
+            if ag.memory.States:
+                state = ag.memory.States[-1]
+                return state
 
-        return np.array(state)
+            else:
+                neighbourhood, _ = self.neighbourhood(index=index)
+                state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
+                state.append(ag.food_reserve)  # got handed an agent
+                return np.array(state)
+
+        else:
+            active_agent = self._idx_to_ag(index)
+            if active_agent.memory.States:
+                state = active_agent.memory.States[-1]  # remember the latest state
+                return state
+
+            else:
+                neighbourhood, _ = self.neighbourhood(index=index)
+                state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
+                state.append(active_agent.food_reserve)
+
+                return np.array(state)
 
     # neighbourhood
     @_index_test_ndarray
@@ -496,8 +546,7 @@ class GridPPM(Environment):
 
             # check if eating move is possible:
             # fetch agent
-            agent_uuid = self.env[tuple(index)]
-            agent = self._agents_dict[agent_uuid]
+            agent = self._idx_to_ag(index)
 
             # initialize target
             target_agent = None
@@ -505,7 +554,7 @@ class GridPPM(Environment):
             if type(agent) not in self.agent_types:
                 raise RuntimeError("The current agent {} of kintype {} is not "
                                    "in the list agent_types. This should not "
-                                   "have happened!".format(agent_uuid,
+                                   "have happened!".format(agent.uuid,
                                                            agent.kin))
 
             # now we have to check if target is eatable or if there is
@@ -583,13 +632,13 @@ class GridPPM(Environment):
                                 "".format(np.ndarray, type(index)))
 
             # fetch agent
-            agent_uuid = self.env[tuple(index)]
-            agent = self._agents_dict[agent_uuid]
+            agent = self._idx_to_ag(index)
 
             if type(agent) not in self.agent_types:
+
                 raise RuntimeError("The current agent {} of kintype {} is not "
                                    "in the list agent_types. This should not "
-                                   "have happened!".format(agent_uuid,
+                                   "have happened!".format(agent.uuid,
                                                            agent.kin))
 
             # now we have to check if target space is free or if it is occupied
@@ -602,7 +651,7 @@ class GridPPM(Environment):
                     # can't procreate without space
                     return self.REWARDS['wrong_action']
 
-                elif target_uuid == agent_uuid:
+                elif target_uuid == agent.uuid:
                     # don't try to create offspring in your own cell
                     return self.REWARDS['wrong_action']
 
@@ -652,6 +701,10 @@ class GridPPM(Environment):
         # empty eaten prey list
         self.eaten_prey = []
 
+        # clear history
+        del self.history.Predator[:]
+        del self.history.Prey[:]
+
         # pop list and return state
         index = self.shuffled_agent_list.pop()
         self.state = self.index_to_state(index=index)
@@ -680,6 +733,9 @@ class GridPPM(Environment):
                 raise RuntimeError("reward should not be of type None! The"
                                    " last action was {} by agent {}"
                                    "".format(act, agent))
+
+        # save the reward
+        agent.memory.Rewards.append(reward)
 
         if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
