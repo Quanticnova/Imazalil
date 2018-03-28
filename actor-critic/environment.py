@@ -194,7 +194,8 @@ class GridPPM(Environment):
                "succesful_predator": 3,  # for eating
                "offspring": 5,  # for succesful procreation
                "death_starvation": -3,  # starvation
-               "death_prey": -3}  # being eaten
+               "death_prey": -3,  # being eaten
+               "indifferent": 0}
 
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
@@ -476,14 +477,8 @@ class GridPPM(Environment):
                 # moving
                 self.env[tuple(target_index)] = self.env[tuple(index)]
                 self.env[tuple(index)] = ''  # clearing the previous position
-                # reward based on kin type
-                """
-                if self._agents_dict[self.env[tuple(target_index)]].kin == "Prey":
-                    return self.REWARDS['default_prey']
-                else:
-                    return self.REWARDS['default_predator']
-                """
-                return self.REWARDS['default_prey']
+
+                return self.REWARDS['indifferent']
         return move_agent
 
     # eating
@@ -626,11 +621,11 @@ class GridPPM(Environment):
                         if agent.kin == "Prey":
                             return self.REWARDS['default_prey']
                         else:
-                            return self.REWARDS['default_prey']
+                            return self.REWARDS['default_predator']
             else:
                 # can't procreate without enough energy!
                 # return self.REWARDS['wrong_action']
-                return self.REWARDS['default_prey']  # testing...
+                return self.REWARDS['indifferent']  # testing...
 
         return procreate_and_move
 

@@ -5,24 +5,25 @@ Model:
     food_reserve:         4
     max_food_reserve:     8
     generation:           0
-    p_breed:              0.2
+    p_breed:              0.4
     p_flee:               0.4
     p_eat:                0.6  # = 1-p_flee
     rewards:
-      wrong_action:       -1
+      wrong_action:       -3
       default_prey:       1
       default_predator:   1
+      indifferent:        0
       succesful_predator: 3
       offspring:          20
       death_starvation:   -5
       death_prey:         -5
 Sim:
     steps:              1000
-    episodes:           100
+    episodes:           300
 
 Plot:
     render:             True
-    filepath:           "plots/"
+    filepath:           "plots/test8/"
     figsize:            !!python/tuple [9,12]
     fmt:                "png"
     dpi:                300

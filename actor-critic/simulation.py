@@ -113,7 +113,7 @@ def main():
                           gamma=0.01, prnt="Predators")
 
     for f in [mean_gens, mean_pred_rewards, mean_prey_rewards]:
-        np.savetxt(cfg['Plot']['filepath'] + str(f) + ".txt", np.arry(f))
+        np.savetxt(cfg['Plot']['filepath'] + str(f) + ".txt", np.array(f))
 
 
 if __name__ == "__main__":
