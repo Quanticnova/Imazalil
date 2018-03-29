@@ -2,16 +2,7 @@
 
 import yaml
 import numpy as np
-import numpy.random as rd
-#import warnings
-# matplotlib?
-#from collections import namedtuple
-
-import torch
-#import torch.nn as nn
-#import torch.nn.functional as F
 import torch.optim as optim
-#from torch.autograd import Variable
 
 from agents import Predator, Prey
 from environment import GridPPM
@@ -24,7 +15,7 @@ with open("simulation_config.yml", "r") as ymlfile:
     cfg = yaml.load(ymlfile)
 
 env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
-#env.seed(12345678)
+# env.seed(12345678)
 
 # Initialize the policies and optimizer ---------------------------------------
 PreyModel = ac.Policy()
@@ -41,7 +32,9 @@ mean_pred_rewards = []
 # main loop
 def main():
     """Trying to pseudo code here."""
+    start = timestamp(return_obj=True)
     for i_eps in range(cfg['Sim']['episodes']):  # for now
+        eps_time = timestamp(return_obj=True)
         print("\n: Environment resetting now...")
         state, idx = env.reset()  # returns state and object of random agent
 
@@ -102,6 +95,7 @@ def main():
             env.state = env.index_to_state(index=idx)
             state = env.state
 
+        print("\n: Episode Runtime: {}".format(start-eps_time))
         # mean_prey_rewards.append(np.mean(PreyModel.rewards))
         # mean_pred_rewards.append(np.mean(PredatorModel.rewards))
         print(": optimizing now...")
