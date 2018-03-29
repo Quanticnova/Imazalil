@@ -100,6 +100,8 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
 
         rewards = torch.Tensor(rewards[::-1])  # backwardss
         rewards = (rewards - rewards.mean()) / (rewards.std() + eps)  # why eps???
+        # TESTING HERE
+        rewards[rewards != rewards] = 0  # should convert all NaN to 0
 
         # now interate over all probability-state value-reward pairs
         for (log_prob, state_value), r in zip(saved_actions, rewards):
@@ -113,12 +115,10 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
         optimizer.zero_grad()
 
         # calculate the loss
-        losses.append(torch.stack(policy_losses).sum() +
-                      torch.stack(state_value_losses).sum())
+        losses.append(torch.stack(policy_losses).sum() + torch.stack(state_value_losses).sum())
 
     # average all losses
     loss = torch.stack(losses).mean()
-    print(loss)
 
     # backpropagate the loss
     loss.backward()
