@@ -19,9 +19,10 @@ Model:
       death_prey:         -5
 Sim:
     steps:              1000
-    episodes:           1000
+    episodes:           10000
 
 Plot:
+    every:              20
     render:             True
     filepath:           "plots/test9/"
     figsize:            !!python/tuple [9,12]

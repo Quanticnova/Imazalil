@@ -749,10 +749,14 @@ class GridPPM(Environment):
         else:
             # new index, if cell is empty due to eaten prey, repop
             newindex = self.shuffled_agent_list.pop()
-            while(self.env[tuple(newindex)] == ""):
-                newindex = self.shuffled_agent_list.pop()
+            while((self.env[tuple(newindex)] == "")):
+                if len(self.shuffled_agent_list) != 0:
+                    newindex = self.shuffled_agent_list.pop()
+                else:
+                    break
 
-            self.state = self.index_to_state(index=newindex)  # new state
+            if(self.env[tuple(newindex)] != ""):
+                self.state = self.index_to_state(index=newindex)  # new state
             return reward, self.state, done, newindex
 
     def render(self, *, episode: int, step: int, figsize: tuple, filepath: str,
@@ -770,8 +774,8 @@ class GridPPM(Environment):
         im = ax.imshow(ma.masked_equal(plotarr, 0), cmap='viridis', vmin=-1,
                        vmax=1)
         cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
-                            ticks=[-1, 0, 1])
-        cbar.ax.set_yticklabels(['Predator', 'Empty', 'Prey'])
+                            ticks=[-1, 1])
+        cbar.ax.set_yticklabels(['Predator', 'Prey'])
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
