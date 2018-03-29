@@ -47,8 +47,9 @@ def main():
 
         for _ in range(cfg['Sim']['steps']):
             print(":: Episode {}, Step {}".format(i_eps, _))
-            print("::: Plotting current state...")
-            env.render(episode=i_eps, step=_, **cfg['Plot'])
+            if i_eps % cfg['Plot']['every'] == 0:  # plot every nth episode
+                print("::: Plotting current state...")
+                env.render(episode=i_eps, step=_, **cfg['Plot'])
             while(env.shuffled_agent_list):
                 # if any prey got eaten last round, use it
                 if len(env.eaten_prey) != 0:
@@ -106,12 +107,12 @@ def main():
         # mean_pred_rewards.append(np.mean(PredatorModel.rewards))
         print(": optimizing now...")
         ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
-                          history=env.history.Prey)
+                          history=env.history.Prey, gamma=0.05)
         ac.finish_episode(model=PredatorModel, optimizer=PredatorOptimizer,
-                          history=env.history.Predator)
+                          history=env.history.Predator, gamma=0.05)
 
-    # for f in [mean_gens, mean_pred_rewards, mean_prey_rewards]:
-    #    np.savetxt(cfg['Plot']['filepath'] + str(f) + ".txt", np.array(f))
+    #for f in [mean_gens, mean_pred_rewards, mean_prey_rewards]:
+    np.savetxt(cfg['Plot']['filepath'] + "gens" + ".txt", np.array(mean_gens))
 
 
 if __name__ == "__main__":
