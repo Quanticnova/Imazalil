@@ -32,7 +32,7 @@ mean_pred_rewards = []
 # main loop
 def main():
     """Trying to pseudo code here."""
-    start = timestamp(return_obj=True)
+    inittime = timestamp(return_obj=True)
     for i_eps in range(cfg['Sim']['episodes']):  # for now
         eps_time = timestamp(return_obj=True)
         print("\n: Environment resetting now...")
@@ -96,7 +96,8 @@ def main():
             env.state = env.index_to_state(index=idx)
             state = env.state
 
-        print("\n: Episode Runtime: {}".format(start-eps_time))
+        print("\n: Episode Runtime: {}".format(timestamp(return_obj=True) -
+                                               eps_time))
         # mean_prey_rewards.append(np.mean(PreyModel.rewards))
         # mean_pred_rewards.append(np.mean(PredatorModel.rewards))
         print(": optimizing now...")
@@ -105,7 +106,8 @@ def main():
         ac.finish_episode(model=PredatorModel, optimizer=PredatorOptimizer,
                           history=env.history.Predator, gamma=0.05)
 
-    #for f in [mean_gens, mean_pred_rewards, mean_prey_rewards]:
+    print("\n: Entire simulation runtime: {}".format(timestamp(return_obj=True) - inittime))
+    # for f in [mean_gens, mean_pred_rewards, mean_prey_rewards]:
     np.savetxt(cfg['Plot']['filepath'] + "gens" + ".txt", np.array(mean_gens))
 
 
