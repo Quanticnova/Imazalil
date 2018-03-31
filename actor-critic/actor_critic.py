@@ -99,8 +99,11 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
             rewards.append(R)  # append + [::-1] is faster than insert(0,*)
 
         rewards = torch.Tensor(rewards[::-1])  # backwardss
-        rewards = (rewards - rewards.mean()) / (rewards.std() + eps)  # why eps???
-        # TESTING HERE
+        rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
+        # I think the eps should take care of my problem of NaNs. Somehow it
+        # doesn't work, but the effect is the same as if I just switch the NaNs
+        # to 0.
+        # converting NaNs to 0.
         rewards[rewards != rewards] = 0  # should convert all NaN to 0
 
         # now interate over all probability-state value-reward pairs
