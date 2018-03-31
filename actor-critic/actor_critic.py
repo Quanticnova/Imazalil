@@ -1,7 +1,6 @@
 """This file provides the functionality for the actor critic neural network."""
 
 import numpy as np
-import numpy.random as rd
 from collections import namedtuple
 
 import torch
@@ -132,5 +131,5 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
     # TODO return some mean values or so
 
     # clear memory from unneeded variables
-    #del model.rewards[:]
-    #del model.saved_actions[:]
+    # del model.rewards[:]
+    # del model.saved_actions[:]

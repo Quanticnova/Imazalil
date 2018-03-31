@@ -20,6 +20,9 @@ Model:
 Sim:
     steps:              1000
     episodes:           10000
+    save_NN_to:         "filepath/"  # store simulation
+    load_NN_from:       ""  # resume
+    record_values:      "generation, reward"
 
 Plot:
     every:              20

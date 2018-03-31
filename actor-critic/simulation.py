@@ -101,10 +101,12 @@ def main():
         # mean_prey_rewards.append(np.mean(PreyModel.rewards))
         # mean_pred_rewards.append(np.mean(PredatorModel.rewards))
         print(": optimizing now...")
+        opt_time_start = timestamp(return_obj=True)
         ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
                           history=env.history.Prey, gamma=0.05)
         ac.finish_episode(model=PredatorModel, optimizer=PredatorOptimizer,
                           history=env.history.Predator, gamma=0.05)
+        print(": optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
 
     print("\n: Entire simulation runtime: {}".format(timestamp(return_obj=True) - inittime))
     # for f in [mean_gens, mean_pred_rewards, mean_prey_rewards]:

@@ -6,11 +6,9 @@ import numpy.ma as ma
 import matplotlib.pyplot as plt
 from collections import namedtuple
 from typing import Union, Callable, NamedTuple
-from gym.spaces import Discrete, Tuple  # for the discrete action space of the agents
 from gym.utils import seeding
 
 from tools import DeepChainMap, type_check, timestamp
-import actor_critic as ac
 
 hist = namedtuple('history', ('Predator', 'Prey'))
 
