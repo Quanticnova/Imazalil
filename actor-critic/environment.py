@@ -223,7 +223,7 @@ class GridPPM(Environment):
 
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
-    __slots__ = ['action_space', 'action_lookup', 'shuffled_agent_list',
+    __slots__ = ['action_lookup', 'shuffled_agent_list',
                  'state', 'eaten_prey']
 
     @type_check(argument_to_check="rewards", type_to_check=dict)
@@ -279,8 +279,6 @@ class GridPPM(Environment):
                               25: self.procreate('D'),
                               26: self.procreate('RD')}
 
-        # create the action space
-        self.action_space = Discrete(len(self.action_lookup))
 
     # properties --------------------------------------------------------------
     # env
