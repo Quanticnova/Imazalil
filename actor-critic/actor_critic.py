@@ -132,8 +132,14 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
     loss.backward()
     optimizer.step()
 
+    # free memory
+    del losses[:]
+    
+    # if output is wanted
     if return_means:
-        return loss, np.mean(returns_to_average)
+        ret_avg = np.mean(returns_to_average)
+        del returns_to_average[:]
+        return loss, ret_avg
 
     # clear memory from unneeded variables
     # del model.rewards[:]

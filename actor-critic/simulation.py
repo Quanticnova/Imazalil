@@ -168,6 +168,7 @@ def main():
 
             avg['mean_gens'].append(np.mean(gens))
             print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
+            del gens[:]  # free memory
 
             # prepare next step
             idx = env.shuffled_agent_list.pop()
@@ -185,7 +186,7 @@ def main():
                                   return_means=True)
         print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
               "".format(l.data[0], mr))
-        avg['mean_prey_loss'].append(l)
+        avg['mean_prey_loss'].append(l.data[0])
         avg['mean_prey_rewards'].append(mr)
 
         l, mr = ac.finish_episode(model=PredatorModel,
@@ -194,7 +195,7 @@ def main():
                                   return_means=True)
         print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
               "".format(l.data[0], mr))
-        avg['mean_pred_loss'].append(l)
+        avg['mean_pred_loss'].append(l.data[0])
         avg['mean_pred_rewards'].append(mr)
 
         print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
