@@ -2,6 +2,7 @@
 
 import numpy as np
 from collections import namedtuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -66,7 +67,7 @@ class Policy(nn.Module):
 
 
 # defining necessary functions - move to a class maybe? /shrug
-def select_action(*, model, agent, state):
+def select_action(*, model, agent, state) -> float:
     """Select an action based on the weighted possibilities given as the output from the model."""
     agent.memory.States.append(state)  # save the state
     state = torch.from_numpy(state).float()  # float creates a float tensor
@@ -79,11 +80,13 @@ def select_action(*, model, agent, state):
 
 
 # defining what to do after the episode finished.
-def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
+def finish_episode(*, model, optimizer, history, gamma: float=0.1,
+                   return_means: bool=False) -> Optional[float]:
     """Calculate the losses and backprop them through the models NN."""
     # initialize a few variables
     eps = np.finfo(np.float32).eps  # machine epsilon
     losses = []
+    returns_to_average = []
     for (_, agent_rewards, saved_actions) in history:
 
         R = 0  # The discounted reward
@@ -96,6 +99,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
 
         # iterate over all rewards that we got during the play
         for r in agent_rewards[::-1]:  # backwards to account for the more recent actions
+            returns_to_average.append(r)  # for later averaging
             R = r + gamma * R  # discount!
             rewards.append(R)  # append + [::-1] is faster than insert(0,*)
 
@@ -128,8 +132,18 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1) -> None:
     loss.backward()
     optimizer.step()
 
-    # TODO return some mean values or so
+    if return_means:
+        return loss, np.mean(returns_to_average)
 
     # clear memory from unneeded variables
     # del model.rewards[:]
     # del model.saved_actions[:]
+
+
+# saving function
+def save_checkpoint(state: dict, filename: str) -> None:
+    """Save the given model state to file."""
+    if filename[-8:] != ".pth.tar":
+        filename += ".pth.tar"
+
+    torch.save(state, filename)  # stores the given parameters
