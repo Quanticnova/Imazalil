@@ -1,6 +1,7 @@
 """Docstring for the tools."""
+import sys
 import datetime as dt
-from typing import Callable
+from typing import Callable, Optional
 from collections import ChainMap
 
 
@@ -45,6 +46,41 @@ def type_check(*, argument_to_check: str, type_to_check: type):
 
             # if everything went fine until now, we can call the function
             return func(*args, **kwargs)
+
+        return wrapped_func
+    return wrap
+
+
+def keyboard_interrupt_handler(*, save: Optional[Callable],
+                               abort: Optional[Callable]):
+    """To be used as decorator to handle keyboard interrupts while running a simulation.
+
+    The given function objects for save and abort will be called depending on the choice of aborting the simulation directly or saving the contents first.
+    """
+    def wrap(func):
+        def wrapped_func(*args, **kwargs):
+            try:
+                func(*args, **kwargs)  # e.g. the simulation main function
+            except KeyboardInterrupt:
+                store = None
+                # ignoring everything else than y,n and emptystring
+                while((store != "y") and (store != "n")):
+                    store = input("\n: Stopping.. store simulation data? (y/N): ")
+                    store = store.lower()  # not case sensitive
+                    if store == "":
+                        store = "n"
+
+                if store == "n":
+                    print(": Aborting simulation...")
+                    if abort is not None:
+                        abort()
+                    sys.exit()
+
+                else:
+                    print(": Storing simulation data...")
+                    if save is not None:
+                        save()
+                    sys.exit()
 
         return wrapped_func
     return wrap
