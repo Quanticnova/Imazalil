@@ -279,7 +279,6 @@ class GridPPM(Environment):
                               25: self.procreate('D'),
                               26: self.procreate('RD')}
 
-
     # properties --------------------------------------------------------------
     # env
     @property
@@ -563,7 +562,7 @@ class GridPPM(Environment):
                 target_agent = self._agents_dict[target_uuid]  # get the target
 
             if agent.kin == "Predator":
-                if not target_agent:
+                if target_agent is None:
                     # don't try to eat empty space
                     return self.REWARDS['wrong_action']  # negative
 
@@ -583,7 +582,7 @@ class GridPPM(Environment):
                         self.eaten_prey.append((target_index, target_agent))
                         target_agent.got_eaten = True  # set flag
                         self._die(target_index)  # remove the eaten prey
-                        self.move(target)(target_index)
+                        self.move(target)(index)
                         return self.REWARDS['succesful_predator']  # hooray!
 
                     else:
@@ -593,7 +592,7 @@ class GridPPM(Environment):
                 # prey just eats
                 if target_uuid == '':
                     agent.food_reserve += 2  # FIXME: no hardcoding!
-                    self.move(target)(target_index)
+                    self.move(target)(index)
                     return self.REWARDS['default_prey']  # for eating and moving
 
                 elif not delta.any():
@@ -694,8 +693,8 @@ class GridPPM(Environment):
         # create new shuffled agents list
         self.create_shuffled_agent_list()
 
-        # empty eaten prey list
-        self.eaten_prey = []
+        # clear eaten prey list
+        del self.eaten_prey[:]
 
         # clear history
         del self.history.Predator[:]
@@ -710,7 +709,6 @@ class GridPPM(Environment):
     def step(self, *, model: Callable, agent: Callable, index: np.ndarray, action: int, returnidx: np.ndarray=None) -> tuple:
         """The method starts from the current state, takes an action and records the return of it."""
         reward = 0  # initialize reward
-        # state = self.state  # might be needed for render? TODO
         agent.food_reserve -= 1  # reduce food_reserve
 
         if hasattr(agent, "got_eaten"):
