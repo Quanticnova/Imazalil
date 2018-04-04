@@ -9,7 +9,7 @@ import torch.optim as optim
 import argparse as ap
 
 from agents import Predator, Prey
-from environment import GridPPM
+from environment_without_uuid import GridPPM
 from tools import timestamp, keyboard_interrupt_handler
 import actor_critic as ac  # also ensures GPU usage when available
 
@@ -145,7 +145,8 @@ def main():
                                                         returnidx=idx,
                                                         action=action)
                 else:
-                    ag = env._idx_to_ag(idx)  # agent object
+                    #ag = env._idx_to_ag(idx)  # agent object
+                    ag = env.env[idx]
 
                     # select model and action
                     model = PreyModel if ag.kin == "Prey" else PredatorModel
@@ -171,7 +172,7 @@ def main():
                   "".format(len(env.shuffled_agent_list)))
             # mean value output
             gens = []
-            for a in env._agents_dict.values():
+            for a in env._agents_set:
                 gens.append(a.generation)
 
             avg['mean_gens'].append(np.mean(gens))
