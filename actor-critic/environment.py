@@ -1,6 +1,7 @@
 """Providing the environment."""
 import warnings
 
+import random as rd
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
@@ -306,20 +307,20 @@ class GridPPM(Environment):
         """
         # no typechecking - this has to happen earlier
         dirs = list(target)
-        delta = np.array([0, 0])
+        x = y = 0
         if not dirs:
-            return delta
+            return np.array([y, x])
         else:  # first Y, then X coordinate
             if "D" in dirs:
-                delta += np.array([-1, 0])
+                y -= 1
             if "U" in dirs:
-                delta += np.array([1, 0])
+                y += 1
             if "L" in dirs:
-                delta += np.array([0, -1])
+                x -= 1
             if "R" in dirs:
-                delta += np.array([0, 1])
+                x += 1
 
-            return delta
+            return np.array([y, x])
 
     # methods -----------------------------------------------------------------
     # populate
@@ -383,7 +384,7 @@ class GridPPM(Environment):
         return helper
 
     # dying
-    @_index_test_ndarray
+    # @_index_test_ndarray
     def _die(self, index: np.ndarray) -> None:
         """Delete the given index from the environment and replace its position with empty string ''."""
         uuid = self.env[tuple(index)]
@@ -415,7 +416,7 @@ class GridPPM(Environment):
         self.env[tuple(target_index)] = newborn.uuid  # we assume that the index is not occupied
 
     # index to agent
-    @_index_test_ndarray
+    # @_index_test_ndarray
     def _idx_to_ag(self, index: np.ndarray) -> Callable:
         """Return the agent object corresponding to a given index."""
         return self._agents_dict[self.env[tuple(index)]]
@@ -429,7 +430,7 @@ class GridPPM(Environment):
 
         self.shuffled_agent_list = agent_list
 
-    @type_check(argument_to_check="uuid", type_to_check=str)
+    # @type_check(argument_to_check="uuid", type_to_check=str)
     def _uuid_to_int(self, *, uuid: str) -> int:
         """Return a integer representation of the uuid.
 
@@ -445,7 +446,7 @@ class GridPPM(Environment):
         return ret
 
     # a mapping from index to state
-    @type_check(argument_to_check="index", type_to_check=np.ndarray)
+    # @type_check(argument_to_check="index", type_to_check=np.ndarray)
     def index_to_state(self, *, index: np.ndarray, ag: Callable=None) -> tuple:
         """Return neighbourhood and food reserve for a given index.
 
@@ -479,7 +480,7 @@ class GridPPM(Environment):
                 return np.array(state)
 
     # neighbourhood
-    @_index_test_ndarray
+    # @_index_test_ndarray
     def neighbourhood(self, index: np.ndarray) -> tuple:
         """Return the 9 neighbourhood for a given index and the index values."""
         # "up" or "down" in the sense of up and down on screen
@@ -493,7 +494,7 @@ class GridPPM(Environment):
         return neighbourhood, neighbour_idc
 
     # moving
-    @_argument_test_str
+    # @_argument_test_str
     def move(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed to move the agent."""
         def move_agent(index: np.ndarray) -> None:
@@ -527,7 +528,7 @@ class GridPPM(Environment):
         return move_agent
 
     # eating
-    @_argument_test_str
+    # @_argument_test_str
     def eat(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to eat."""
         def eat_and_move(index: np.ndarray) -> None:
@@ -576,7 +577,7 @@ class GridPPM(Environment):
                     return self.REWARDS['wrong_action']  # negative
 
                 else:
-                    roll = np.random.rand()
+                    roll = rd.random()
                     if roll <= agent.p_eat:
                         agent.food_reserve += 3  # FIXME: no hardcoding!
                         self.eaten_prey.append((target_index, target_agent))
@@ -612,7 +613,7 @@ class GridPPM(Environment):
         return eat_and_move
 
     # procreating
-    @_argument_test_str
+    # @_argument_test_str
     def procreate(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to procreate with probability p_breed."""
         def procreate_and_move(index: np.ndarray) -> None:
@@ -652,7 +653,7 @@ class GridPPM(Environment):
 
                 else:
                     # try to breed
-                    roll = np.random.rand()
+                    roll = rd.random()
                     if roll <= agent.p_breed:
                         # create new instance of <agent>
                         newborn = agent.procreate(food_reserve=3)  # FIXME hardcoded
