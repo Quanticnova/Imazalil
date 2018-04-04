@@ -1,3 +1,5 @@
+#!/home/corvus/docs/uni/bachelor_thesis/code/Imazalil/BA-venv/bin/python
+
 """This is an example simulation file for running a PPM simulation, using actor-critic method."""
 
 import yaml
@@ -76,12 +78,18 @@ if resume is not None:
         if p in resume:
             resume_pars[p] = resume[p]
 
-PreyOptimizer = optim.Adam(PreyModel.parameters(), lr=1e-4)  # whatever the numbers...
+PreyOptimizer = optim.Adam(PreyModel.parameters(), lr=1e-4)
 PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=1e-4)
+
+if resume is not None:  # resume the parameters..
+    PreyOptimizer.load_state_dict(resume['PreyOptimizerState'])
+    PredatorOptimizer.load_state_dict(resume['PredatorOptimizerState'])
 
 # save function ---------------------------------------------------------------
 save_state = {'PreyState': PreyModel.state_dict(),
               'PredatorState': PredatorModel.state_dict(),
+              'PreyOptimizerState': PreyOptimizer.state_dict(),
+              'PredatorOptimizerState': PredatorOptimizer.state_dict(),
               'mean_gens': avg['mean_gens'],
               'mean_prey_rewards': avg['mean_prey_rewards'],
               'mean_pred_rewards': avg['mean_pred_rewards'],
