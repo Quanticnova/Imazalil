@@ -5,6 +5,7 @@ Model:
     food_reserve:         4
     max_food_reserve:     8
     generation:           0
+    neighbourhood:        25  # only squares of odd numbers, e.g. 9, 25, 49
     p_breed:              0.4
     p_flee:               0.4
     p_eat:                0.6  # = 1-p_flee
