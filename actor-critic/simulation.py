@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 import argparse as ap
+from collections import deque
 
 from agents import Predator, Prey
 from environment import GridPPM
@@ -55,11 +56,11 @@ env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 PreyModel = ac.Policy()
 PredatorModel = ac.Policy()
 # averages
-avg = {'mean_gens': [],  # in step units
-       'mean_prey_rewards': [],  # in episode units
-       'mean_pred_rewards': [],
-       'mean_prey_loss': [],  # in episode units
-       'mean_pred_loss': []}
+avg = {'mean_gens': deque(),  # in step units
+       'mean_prey_rewards': deque(),  # in episode units
+       'mean_pred_rewards': deque(),
+       'mean_prey_loss': deque(),  # in episode units
+       'mean_pred_loss': deque()}
 
 # simulation parameters
 resume_pars = {'last_episode': 0}
@@ -162,7 +163,6 @@ def main():
                                                         index=idx,
                                                         action=action)
 
-                # model.rewards.append(reward)
                 if done:
                     print(":: Breakpoint reached: Predators: {}\t Prey: {}"
                           "".format(len(env._agents_tuple.Predator),
@@ -175,14 +175,14 @@ def main():
             print("::: Created new shuffled agents list with {} individuals."
                   "".format(len(env.shuffled_agent_list)))
             # mean value output
-            gens = []
+            gens = deque()
             for a in env._agents_set:
                 # for a in env._agents_dict.values():
                 gens.append(a.generation)
 
             avg['mean_gens'].append(np.mean(gens))
             print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
-            del gens[:]  # free memory
+            gens.clear()  # free memory
 
             # prepare next step
             idx = env.shuffled_agent_list.pop()
@@ -191,8 +191,6 @@ def main():
 
         print("\n: Episode Runtime: {}".format(timestamp(return_obj=True) -
                                                eps_time))
-        # mean_prey_rewards.append(np.mean(PreyModel.rewards))
-        # mean_pred_rewards.append(np.mean(PredatorModel.rewards))
         print("\n: optimizing now...")
         opt_time_start = timestamp(return_obj=True)
         l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,

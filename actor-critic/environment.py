@@ -5,7 +5,7 @@ import random as rd
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
-from collections import namedtuple
+from collections import namedtuple, deque
 from typing import Union, Callable, NamedTuple
 from gym.utils import seeding
 
@@ -73,7 +73,7 @@ class Environment:
         if history:
             self.history = history
         else:
-            self.history = hist([], [])  # empty history
+            self.history = hist(deque(), deque())  # empty history
 
     # properties -------------------------------------------------------------
     # dimensions
@@ -244,7 +244,7 @@ class GridPPM(Environment):
         # initialize other variables
         self.shuffled_agent_list = None
         self.state = None
-        self.eaten_prey = []
+        self.eaten_prey = deque()
 
         # populate the grid + initial shuffled agent list
         self._populate()
@@ -430,9 +430,9 @@ class GridPPM(Environment):
 
     # create shuffled list of agents
     def create_shuffled_agent_list(self) -> list:
-        """Return a shuffled list of (y,x) index arrays where the agents (at list creation time) are."""
+        """Return a shuffled deque of (y,x) index arrays where the agents (at deque creation time) are."""
         y, x = np.where(self.env != None)  # get indices
-        agent_list = [i for i in zip(y, x)]  # create list
+        agent_list = deque(i for i in zip(y, x))  # create deque
         np.random.shuffle(agent_list)
 
         self.shuffled_agent_list = agent_list
@@ -684,11 +684,11 @@ class GridPPM(Environment):
         self.create_shuffled_agent_list()
 
         # clear eaten prey list
-        del self.eaten_prey[:]
+        self.eaten_prey.clear()
 
         # clear history
-        del self.history.Predator[:]
-        del self.history.Prey[:]
+        self.history.Predator.clear()
+        self.history.Prey.clear()
 
         # pop list and return state
         index = self.shuffled_agent_list.pop()
