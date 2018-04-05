@@ -53,8 +53,9 @@ env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
-PreyModel = ac.Policy()
-PredatorModel = ac.Policy()
+inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
+PreyModel = ac.Policy(inputs=inp)
+PredatorModel = ac.Policy(inputs=inp)
 # averages
 avg = {'mean_gens': deque(),  # in step units
        'mean_prey_rewards': deque(),  # in episode units

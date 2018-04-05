@@ -226,13 +226,13 @@ class GridPPM(Environment):
 
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
-    __slots__ = ['action_lookup', 'shuffled_agent_list',
-                 'state', 'eaten_prey']
+    __slots__ = ['action_lookup', 'shuffled_agent_list', '_nbh_lr', '_nbh_ur',
+                 'state', 'eaten_prey', '_nbh_type', '_nbh_range']
 
     # @type_check(argument_to_check="rewards", type_to_check=dict)
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple], rewards: dict=None,
-                 **agent_kwargs: Union[int, float, None]):
+                 neighbourhood: int=9, **agent_kwargs: Union[int, float, None]):
         """Initialise the grid."""
         # call parent init function
         super().__init__(dim=dim, agent_types=agent_types, densities=densities,
@@ -245,6 +245,15 @@ class GridPPM(Environment):
         self.shuffled_agent_list = None
         self.state = None
         self.eaten_prey = deque()
+
+        # neighbourhood stuff
+        self._nbh_type = None
+        self._nbh_range = None
+        self._nbh_lr = None  # lower range
+        self._nbh_ur = None  # upper range
+
+        # set neighbourhood variables (all in setter)
+        self.nbh_type = neighbourhood
 
         # populate the grid + initial shuffled agent list
         self._populate()
@@ -298,6 +307,31 @@ class GridPPM(Environment):
 
         else:
             self._env = env
+
+    @property
+    def nbh_type(self) -> int:
+        """Return the neighbourhood type, i.e. 9, 25, ..."""
+        return self._nbh_type
+
+    @nbh_type.setter
+    def nbh_type(self, nbh_type: int) -> None:
+        """Set the nbh_type, as well as the values for nbh_range, nbh_lr and nbh_ur."""
+        if self.nbh_type is not None:
+            raise RuntimeError("neighbourhood type already set!")
+
+        elif not isinstance(nbh_type, int):
+            raise TypeError("neighbourhood type must be of type int, but {}"
+                            " was given.".format(type(nbh_type)))
+
+        elif not (np.sqrt(nbh_type) == int(np.sqrt(nbh_type))):
+            raise RuntimeError("neighbourhood type must be a square of an odd"
+                               " number.")
+
+        else:
+            self._nbh_type = nbh_type
+            self._nbh_range = int(np.sqrt(nbh_type))
+            self._nbh_ur = self._nbh_range - int(np.floor(self._nbh_range/2))
+            self._nbh_lr = 1 - self._nbh_ur
 
     # staticmethods -----------------------------------------------------------
     @staticmethod
@@ -467,7 +501,7 @@ class GridPPM(Environment):
                 return state
 
             else:
-                neighbourhood, _ = self.neighbourhood(index=index)
+                neighbourhood = self.neighbourhood(index=index)
                 state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
                 state.append(ag.food_reserve)  # got handed an agent
                 return np.array(state)
@@ -479,15 +513,35 @@ class GridPPM(Environment):
                 return state
 
             else:
-                neighbourhood, _ = self.neighbourhood(index=index)
+                neighbourhood = self.neighbourhood(index=index)
                 state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
                 state.append(active_agent.food_reserve)
 
                 return np.array(state)
 
     # neighbourhood
+
+    def neighbourhood(self, index: tuple) -> np.array:
+        """Return the neighbourhood specified in simulation config."""
+        y, x = index
+        idx = np.array(index)  # needed for computation
+        if(np.any((idx - self._nbh_range) < 0) or
+           np.any((idx + self._nbh_range) >= self.dim)):
+            nbh = deque()
+            for j in range(self._nbh_lr, self._nbh_ur):
+                for i in range(self._nbh_lr, self._nbh_ur):
+                    new_idx = tuple((idx + np.array([j, i])) % self.dim)
+                    nbh.append(self.env[new_idx])  # append grid contents
+            nbh = np.array(nbh).ravel()
+
+        else:
+            nbh = self.env[slice(y + self._nbh_lr, y + self._nbh_ur),
+                           slice(x + self._nbh_lr, x + self._nbh_ur)].ravel()
+        return nbh
+
+    '''
     # @_index_test_ndarray
-    def neighbourhood(self, index: tuple) -> tuple:
+    def neighbourhood2(self, index: tuple) -> tuple:
         """Return the 9 neighbourhood for a given index and the index values."""
         # "up" or "down" in the sense of up and down on screen
         delta = np.array([[-1, -1], [-1, 0], [-1, 1],  # UL, U, UR
@@ -498,6 +552,7 @@ class GridPPM(Environment):
         neighbourhood = self.env[tuple(neighbour_idc.T)]  # numpy magic for correct indexing
 
         return neighbourhood, neighbour_idc
+    '''
 
     # moving
     # @_argument_test_str
