@@ -19,8 +19,8 @@ Model:
       death_prey:         -5
 Sim:
     steps:              1000
-    episodes:           1
-    save_state_to:      "plots/sometest/"  # store simulation
+    episodes:           10000
+    save_state_to:      "plots/test_64x64/"  # store simulation
     resume_state_from:  ""  # resume but is also command line option
     record_values:      "generation, reward"
     save_state_every:   100  # episodes
@@ -28,7 +28,7 @@ Sim:
 Plot:
     every:              20
     render:             True
-    filepath:           "plots/sometest/"
+    filepath:           "plots/test_64x64/"
     figsize:            !!python/tuple [9,12]
     fmt:                "png"
     dpi:                300

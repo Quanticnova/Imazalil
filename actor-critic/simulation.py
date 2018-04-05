@@ -118,6 +118,10 @@ def main():
         print("\n: Environment resetting now...")
         state, idx = env.reset()  # returns state and object of random agent
 
+        # save data
+        if i_eps % cfg['Sim']['save_state_every'] == 0:
+            save()
+
         for _ in range(cfg['Sim']['steps']):
             print(":: Episode {}, Step {}".format(i_eps, _))
 
@@ -125,10 +129,6 @@ def main():
                 if i_eps % cfg['Plot']['every'] == 0:  # plot every nth episode
                     print("::: Plotting current state...")
                     env.render(episode=i_eps, step=_, **cfg['Plot'])
-
-            # save data
-            if i_eps % cfg['Sim']['save_state_every'] == 0:
-                save()
 
             while(env.shuffled_agent_list):  # as long as there are agents
                 # if any prey got eaten last round, use it
