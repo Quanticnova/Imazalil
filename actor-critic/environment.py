@@ -22,7 +22,7 @@ class Environment:
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_dim', '_densities', '_agent_types', '_agent_kwargs',
-                 '_max_pop', '_env', '_agents_dict', '_agents_tuple',
+                 '_max_pop', '_env', '_agents_set', '_agents_tuple',
                  '_np_random', '_history']  # _agent_named_properties
 
     # init --------------------------------------------------------------------
@@ -64,8 +64,10 @@ class Environment:
         agnts = namedtuple('agent_types', [a.__name__ for a in
                            self.agent_types])
         # initialise with empty dicts
-        self._agents_tuple = agnts(*[{} for _ in self.agent_types])
-        self._agents_dict = DeepChainMap(*self._agents_tuple)
+        self._agents_tuple = agnts(*[set() for _ in self.agent_types])
+        self._agents_set = set()
+        for s in self._agents_tuple:
+            self._agents_set.update(s)
 
         # initialize history
         if history:
@@ -227,7 +229,7 @@ class GridPPM(Environment):
     __slots__ = ['action_lookup', 'shuffled_agent_list',
                  'state', 'eaten_prey']
 
-    @type_check(argument_to_check="rewards", type_to_check=dict)
+    # @type_check(argument_to_check="rewards", type_to_check=dict)
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple], rewards: dict=None,
                  **agent_kwargs: Union[int, float, None]):
@@ -237,7 +239,7 @@ class GridPPM(Environment):
                          **agent_kwargs)
 
         # initialise empty environment
-        self._env = np.empty(self.max_pop, dtype='U33')  # FIXME: no hardcoding
+        self._env = np.empty(self.max_pop, dtype=object)  # FIXME: no hardcoding
 
         # initialize other variables
         self.shuffled_agent_list = None
@@ -348,8 +350,9 @@ class GridPPM(Environment):
             for _ in idx[sum(num_agents[:i]) : sum(num_agents[:i+1])]:
                 name = at.__name__
                 a = at(**self.agent_kwargs)  # create new agent isinstance
-                self.env[_] = a.uuid  # add the uuid to the environment
-                getattr(self._agents_tuple, name)[a.uuid] = a
+                self.env[_] = a  # add the agent to the environment
+                getattr(self._agents_tuple, name).add(a)
+                self._agents_set.add(a)
 
         self.env = self.env.reshape(self.dim)
 
@@ -385,16 +388,17 @@ class GridPPM(Environment):
 
     # dying
     # @_index_test_ndarray
-    def _die(self, index: np.ndarray) -> None:
-        """Delete the given index from the environment and replace its position with empty string ''."""
-        uuid = self.env[tuple(index)]
-        if uuid != '':
-            ag = self._agents_dict[uuid]
+    def _die(self, index: tuple) -> None:
+        """Delete the given agent from the environment and replace its position with None."""
+        ag = self.env[index]
+        if ag is not None:
+            # ag = self._agents_dict[uuid]
             # record history in the right list
             getattr(self.history, ag.kin).append(ag.memory)
-            del self._agents_dict[uuid]  # only deletes the dict entry
+            self._agents_set.remove(ag)  # only deletes the set entry
+            getattr(self._agents_tuple, ag.kin).remove(ag)  # same as above
             del ag
-            self.env[tuple(index)] = ''
+            self.env[index] = None
         else:
             warnings.warn("Trying to delete an empty cell", RuntimeWarning)
 
@@ -402,52 +406,54 @@ class GridPPM(Environment):
     def _add_to_agents_tuple(self, *, newborn: Callable) -> None:
         """Add the given agent in the corresponding subtuple dictionary.
 
-        The added agent is then also available in GridPPM._agents_dict.
+        The added agent is then also available in GridPPM._agents_set.
         """
-        getattr(self._agents_tuple, newborn.kin)[newborn.uuid] = newborn
+        getattr(self._agents_tuple, newborn.kin).add(newborn)
+        self._agents_set.add(newborn)
 
     # add agent to Environment
-    def add_to_env(self, *, target_index: np.ndarray, newborn: Callable) -> None:
+    def add_to_env(self, *, target_index: tuple, newborn: Callable) -> None:
         """Add the given agent to the environment using target_index.
 
         The agent is added to the corresponding subtuple dictionary, and to the environment array.
         """
         self._add_to_agents_tuple(newborn=newborn)
-        self.env[tuple(target_index)] = newborn.uuid  # we assume that the index is not occupied
+        self.env[target_index] = newborn  # we assume that the index is not occupied
 
+    '''
     # index to agent
     # @_index_test_ndarray
     def _idx_to_ag(self, index: np.ndarray) -> Callable:
         """Return the agent object corresponding to a given index."""
         return self._agents_dict[self.env[tuple(index)]]
+    '''
 
     # create shuffled list of agents
     def create_shuffled_agent_list(self) -> list:
         """Return a shuffled list of (y,x) index arrays where the agents (at list creation time) are."""
-        y, x = np.where(self.env != '')  # get indices
-        agent_list = list(np.array((y, x)).T)  # create list
+        y, x = np.where(self.env != None)  # get indices
+        agent_list = [i for i in zip(y, x)]  # create list
         np.random.shuffle(agent_list)
 
         self.shuffled_agent_list = agent_list
 
     # @type_check(argument_to_check="uuid", type_to_check=str)
-    def _uuid_to_int(self, *, uuid: str) -> int:
-        """Return a integer representation of the uuid.
+    def _ag_to_int(self, *, ag: Callable) -> int:
+        """Return a integer representation of the agent.
 
         Predator == -1
         Prey     ==  1
         ''       ==  0
         """
-        ret = 0  # initialize return value
-        if uuid != "":
-            ag = self._agents_dict[uuid]
-            ret = self.KIN_LOOKUP[ag.kin]  # if agent, then set value
+        if ag is not None:
+            return self.KIN_LOOKUP[ag.kin]  # if agent, then set value
 
-        return ret
+        else:
+            return 0
 
     # a mapping from index to state
     # @type_check(argument_to_check="index", type_to_check=np.ndarray)
-    def index_to_state(self, *, index: np.ndarray, ag: Callable=None) -> tuple:
+    def index_to_state(self, *, index: tuple, ag: Callable=None) -> tuple:
         """Return neighbourhood and food reserve for a given index.
 
         If agent was prey and got eaten, index points to '' in env. The return for food_reserve is then None.
@@ -462,33 +468,33 @@ class GridPPM(Environment):
 
             else:
                 neighbourhood, _ = self.neighbourhood(index=index)
-                state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
+                state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
                 state.append(ag.food_reserve)  # got handed an agent
                 return np.array(state)
 
         else:
-            active_agent = self._idx_to_ag(index)
+            active_agent = self.env[index]
             if active_agent.memory.States:
                 state = active_agent.memory.States[-1]  # remember the latest state
                 return state
 
             else:
                 neighbourhood, _ = self.neighbourhood(index=index)
-                state = [self._uuid_to_int(uuid=uuid) for uuid in neighbourhood]
+                state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
                 state.append(active_agent.food_reserve)
 
                 return np.array(state)
 
     # neighbourhood
     # @_index_test_ndarray
-    def neighbourhood(self, index: np.ndarray) -> tuple:
+    def neighbourhood(self, index: tuple) -> tuple:
         """Return the 9 neighbourhood for a given index and the index values."""
         # "up" or "down" in the sense of up and down on screen
         delta = np.array([[-1, -1], [-1, 0], [-1, 1],  # UL, U, UR
                           [0, -1], [0, 0], [0, 1],  # L, _, R
                           [1, -1], [1, 0], [1, 1]])  # DL, D, DR
 
-        neighbour_idc = (index + delta) % self.dim  # ensure bounds
+        neighbour_idc = (np.array(index) + delta) % self.dim  # ensure bounds
         neighbourhood = self.env[tuple(neighbour_idc.T)]  # numpy magic for correct indexing
 
         return neighbourhood, neighbour_idc
@@ -497,7 +503,7 @@ class GridPPM(Environment):
     # @_argument_test_str
     def move(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed to move the agent."""
-        def move_agent(index: np.ndarray) -> None:
+        def move_agent(index: tuple) -> None:
             """Move the given agent to previously specified target.
 
             targets can be (A is agent and corresponds to target ''):
@@ -508,21 +514,17 @@ class GridPPM(Environment):
 
             If the desired location is already occupied, do nothing.
             """
-            if not isinstance(index, np.ndarray):
-                raise TypeError("Index must be of type {} but {} was given."
-                                "".format(np.ndarray, type(index)))
-
             # check if move is possible
             delta = self._target_to_value(target)
-            target_index = (index + delta) % self.dim  # taking care of bounds
-            if self.env[tuple(target_index)] != '':
+            target_index = tuple((np.array(index) + delta) % self.dim)  # taking care of bounds
+            if self.env[target_index] is not None:
                 return self.REWARDS['wrong_action']  # negative
 
             else:
                 # FIXME: this won't work in the 1D case (if desired..)
                 # moving
-                self.env[tuple(target_index)] = self.env[tuple(index)]
-                self.env[tuple(index)] = ''  # clearing the previous position
+                self.env[target_index] = self.env[index]
+                self.env[index] = None  # clearing the previous position
 
                 return self.REWARDS['indifferent']
         return move_agent
@@ -531,21 +533,14 @@ class GridPPM(Environment):
     # @_argument_test_str
     def eat(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to eat."""
-        def eat_and_move(index: np.ndarray) -> None:
+        def eat_and_move(index: tuple) -> None:
             """Try to eat the prey in target with probability p_eat = 1 - p_flee as agent from index.
 
             targets are the same as for `move`.
             """
-            if not isinstance(index, np.ndarray):
-                raise TypeError("Index must be of type {} but {} was given."
-                                "".format(np.ndarray, type(index)))
-
             # check if eating move is possible:
             # fetch agent
-            agent = self._idx_to_ag(index)
-
-            # initialize target
-            target_agent = None
+            agent = self.env[index]
 
             if type(agent) not in self.agent_types:
                 raise RuntimeError("The current agent {} of kintype {} is not "
@@ -556,11 +551,8 @@ class GridPPM(Environment):
             # now we have to check if target is eatable or if there is
             # space to move to
             delta = self._target_to_value(target)
-            target_index = (index + delta) % self.dim  # bounds again!
-            target_uuid = self.env[tuple(target_index)]  # == agent_uuid if delta is [0,0]
-
-            if target_uuid != '':
-                target_agent = self._agents_dict[target_uuid]  # get the target
+            target_index = tuple((np.array(index) + delta) % self.dim)  # bounds again!
+            target_agent = self.env[target_index]  # == agent_uuid if delta is [0,0]
 
             if agent.kin == "Predator":
                 if target_agent is None:
@@ -591,7 +583,7 @@ class GridPPM(Environment):
 
             elif agent.kin == "Prey":
                 # prey just eats
-                if target_uuid == '':
+                if target_agent is None:
                     agent.food_reserve += 2  # FIXME: no hardcoding!
                     self.move(target)(index)
                     return self.REWARDS['default_prey']  # for eating and moving
@@ -616,19 +608,15 @@ class GridPPM(Environment):
     # @_argument_test_str
     def procreate(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to procreate with probability p_breed."""
-        def procreate_and_move(index: np.ndarray) -> None:
+        def procreate_and_move(index: tuple) -> None:
             """Try to have offspring in `target` with probability p_breed.
 
             `targets` are the same as in `move` and `eat`. If `target` is not
             empty, there should be a negative reward. Also for trying to
             procreate without having enough food_reserve is penalized.
             """
-            if not isinstance(index, np.ndarray):
-                raise TypeError("Index must be of type {} but {} was given."
-                                "".format(np.ndarray, type(index)))
-
             # fetch agent
-            agent = self._idx_to_ag(index)
+            agent = self.env[index]
 
             if type(agent) not in self.agent_types:
 
@@ -639,15 +627,15 @@ class GridPPM(Environment):
 
             # now we have to check if target space is free or if it is occupied
             delta = self._target_to_value(target)
-            target_index = (index + delta) % self.dim  # bounds again!
-            target_uuid = self.env[tuple(target_index)]  # == agent_uuid if delta is [0,0]
+            target_index = tuple((np.array(index) + delta) % self.dim)  # bounds again!
+            target_content = self.env[target_index]  # == agent_uuid if delta is [0,0]
 
             if agent.food_reserve >= 5:  # FIXME: no hardcoding!
-                if target_uuid != '':
+                if target_content is not None:
                     # can't procreate without space
                     return self.REWARDS['wrong_action']
 
-                elif target_uuid == agent.uuid:
+                elif target_content == agent:
                     # don't try to create offspring in your own cell
                     return self.REWARDS['wrong_action']
 
@@ -678,15 +666,16 @@ class GridPPM(Environment):
     def reset(self) -> tuple:
         """Reset the environment and return the state and the object of the first popped element of the shuffled agents list."""
         # create named tuple template
-        agnts = namedtuple('agent_types', [a.__name__ for a in
-                           self.agent_types])
+        #agnts = namedtuple('agent_types', [a.__name__ for a in
+        #                   self.agent_types])
 
         # set to empty dicts
-        self._agents_tuple = agnts(*[{} for _ in self.agent_types])
-        self._agents_dict = DeepChainMap(*self._agents_tuple)
+        self._agents_tuple.Predator.clear()
+        self._agents_tuple.Prey.clear()
+        self._agents_set.clear()
 
         # clear Environment
-        self._env = np.empty(self.max_pop, dtype='U33')  # FIXME: no hardcoding
+        self._env = np.empty(self.max_pop, dtype=object)
 
         # populate the grid and agent dicts
         self._populate()
@@ -707,7 +696,7 @@ class GridPPM(Environment):
 
         return self.state, index
 
-    def step(self, *, model: Callable, agent: Callable, index: np.ndarray, action: int, returnidx: np.ndarray=None) -> tuple:
+    def step(self, *, model: Callable, agent: Callable, index: tuple, action: int, returnidx: tuple=None) -> tuple:
         """The method starts from the current state, takes an action and records the return of it."""
         reward = 0  # initialize reward
         agent.food_reserve -= 1  # reduce food_reserve
@@ -744,13 +733,13 @@ class GridPPM(Environment):
         else:
             # new index, if cell is empty due to eaten prey, repop
             newindex = self.shuffled_agent_list.pop()
-            while((self.env[tuple(newindex)] == "")):
+            while((self.env[newindex] == "")):
                 if len(self.shuffled_agent_list) != 0:
                     newindex = self.shuffled_agent_list.pop()
                 else:
                     break
 
-            if(self.env[tuple(newindex)] != ""):
+            if self.env[newindex] is not None:
                 self.state = self.index_to_state(index=newindex)  # new state
             return reward, self.state, done, newindex
 
@@ -758,10 +747,10 @@ class GridPPM(Environment):
                dpi: int, fmt: str, **kwargs):
         """The method visualizes the simulations."""
         plotarr = np.zeros(shape=np.shape(self.env))
-        y, x = np.where(self.env != '')
+        y, x = np.where(self.env != None)
 
-        for idc in np.array([y, x]).T:
-            plotarr[tuple(idc)] = self._uuid_to_int(uuid=self.env[tuple(idc)])
+        for idc in zip(y, x):
+            plotarr[idc] = self._ag_to_int(ag=self.env[idc])
 
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)

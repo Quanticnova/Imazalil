@@ -9,7 +9,7 @@ import torch.optim as optim
 import argparse as ap
 
 from agents import Predator, Prey
-from environment_without_uuid import GridPPM
+from environment import GridPPM
 from tools import timestamp, keyboard_interrupt_handler
 import actor_critic as ac  # also ensures GPU usage when available
 
@@ -126,6 +126,10 @@ def main():
                     print("::: Plotting current state...")
                     env.render(episode=i_eps, step=_, **cfg['Plot'])
 
+            # save data
+            if i_eps % cfg['Sim']['save_state_every'] == 0:
+                save()
+
             while(env.shuffled_agent_list):  # as long as there are agents
                 # if any prey got eaten last round, use it
                 if len(env.eaten_prey) != 0:
@@ -145,7 +149,7 @@ def main():
                                                         returnidx=idx,
                                                         action=action)
                 else:
-                    #ag = env._idx_to_ag(idx)  # agent object
+                    # ag = env._idx_to_ag(idx)  # agent object
                     ag = env.env[idx]
 
                     # select model and action
@@ -173,6 +177,7 @@ def main():
             # mean value output
             gens = []
             for a in env._agents_set:
+                # for a in env._agents_dict.values():
                 gens.append(a.generation)
 
             avg['mean_gens'].append(np.mean(gens))

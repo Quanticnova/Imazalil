@@ -1,11 +1,11 @@
 # configuration file for the actor-critic PPM
 Model:
-    dim:                  !!python/tuple [128, 128]  # dimensionality
+    dim:                  !!python/tuple [64, 64]  # dimensionality
     densities:            !!python/tuple [0.2, 0.215]  # Predator, Prey
     food_reserve:         4
     max_food_reserve:     8
     generation:           0
-    p_breed:              0.2
+    p_breed:              0.4
     p_flee:               0.4
     p_eat:                0.6  # = 1-p_flee
     rewards:
@@ -19,15 +19,16 @@ Model:
       death_prey:         -5
 Sim:
     steps:              1000
-    episodes:           20000
-    save_state_to:      "plots/test10/"  # store simulation
+    episodes:           1
+    save_state_to:      "plots/sometest/"  # store simulation
     resume_state_from:  ""  # resume but is also command line option
     record_values:      "generation, reward"
+    save_state_every:   100  # episodes
 
 Plot:
-    every:              100
+    every:              20
     render:             True
-    filepath:           "plots/test10/"
+    filepath:           "plots/sometest/"
     figsize:            !!python/tuple [9,12]
     fmt:                "png"
     dpi:                300

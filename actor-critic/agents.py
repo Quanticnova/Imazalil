@@ -1,6 +1,6 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
-import uuid
+# import uuid
 from collections import namedtuple
 from typing import Callable, NamedTuple
 
@@ -15,7 +15,6 @@ class Agent:
         - food_reserve
         - max_food_reserve
         - generation
-        - uuid
         - p_breed, the breeding probability
         - .... more to come
 
@@ -23,12 +22,12 @@ class Agent:
     """
 
     # class constants
-    _UUID_LENGTH = len(uuid.uuid4().hex)
+    # _UUID_LENGTH = len(uuid.uuid4().hex)
     HEIRSHIP = ['max_food_reserve', 'generation', 'p_breed', '_kwargs']
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_food_reserve', '_max_food_reserve', '_generation',
-                 '_p_breed', '_uuid', '_kin', '_kwargs', '_memory']
+                 '_p_breed', '_kin', '_kwargs', '_memory']
 
     # Init --------------------------------------------------------------------
     def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
@@ -39,7 +38,7 @@ class Agent:
         self._food_reserve = 0
         self._max_food_reserve = None
         self._generation = None
-        self._uuid = None
+        # self._uuid = None
         self._p_breed = 1.0
         self._kin = None
         self._kwargs = kwargs  # just set the value directly here.
@@ -48,7 +47,7 @@ class Agent:
         # Set property managed attributes
         self.food_reserve = food_reserve
         self.p_breed = p_breed
-        self.uuid = self._generate_uuid()
+        # self.uuid = self._generate_uuid()
 
         if kin:  # if kin is given, set kin
             self.kin = kin
@@ -71,7 +70,7 @@ class Agent:
     def __str__(self) -> str:
         """Return the agents properties."""
         props = ("{}\tID: {}\tgeneration: {}\tfood_reserve: {}\t"
-                 "max_food_reserve: {}".format(self.kin, self.uuid,
+                 "max_food_reserve: {}".format(self.kin,  # self.uuid,
                                                self.generation,
                                                self.food_reserve,
                                                self.max_food_reserve))
@@ -154,6 +153,7 @@ class Agent:
         else:
             self._generation = generation
 
+    '''
     # id
     @property
     def uuid(self) -> str:
@@ -177,6 +177,7 @@ class Agent:
         else:
             self._uuid = uuid
 
+    '''
     # breeding probability
     @property
     def p_breed(self) -> float:
@@ -234,12 +235,12 @@ class Agent:
             self._memory = memory
 
     # staticmethods -----------------------------------------------------------
+    '''
     @staticmethod
     def _generate_uuid():
         """Generate a uuid for an agent."""
         return uuid.uuid4().hex
-
-    # TODO: think about sensible ways for kin type storage -> plotting etc.
+    '''
     # classmethods ------------------------------------------------------------
     @classmethod
     def _procreate_empty(cls, *, food_reserve: int) -> Callable:
@@ -275,11 +276,10 @@ class Predator(Agent):
     """Predator class derived from Agent.
 
     This provides (additionally to class Agent):
-        - specified uuid (leading "J_")
     """
 
     # class constants
-    _UUID_LENGTH = Agent._UUID_LENGTH
+    # _UUID_LENGTH = Agent._UUID_LENGTH
     HEIRSHIP = Agent.HEIRSHIP + ['p_eat']
 
     # slots -------------------------------------------------------------------
@@ -307,7 +307,7 @@ class Predator(Agent):
     def __str__(self) -> str:
         """Return the agents properties."""
         props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
-                 "max_food_res: {}\t p_eat: {}".format(self.kin, self.uuid,
+                 "max_food_res: {}\t p_eat: {}".format(self.kin,  # self.uuid,
                                                        self.generation,
                                                        self.food_reserve,
                                                        self.max_food_reserve,
@@ -344,7 +344,7 @@ class Prey(Agent):
     """
 
     # class constants
-    _UUID_LENGTH = Agent._UUID_LENGTH
+    # _UUID_LENGTH = Agent._UUID_LENGTH
     HEIRSHIP = Agent.HEIRSHIP + ['p_flee']
 
     # slots -------------------------------------------------------------------
@@ -374,7 +374,7 @@ class Prey(Agent):
         """Return the agents properties."""
         props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
                  "max_food_res: {}\t p_flee: {}\t"
-                 " got_eaten: {}".format(self.kin, self.uuid,
+                 " got_eaten: {}".format(self.kin,  # self.uuid,
                                          self.generation,
                                          self.food_reserve,
                                          self.max_food_reserve,
