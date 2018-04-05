@@ -135,12 +135,12 @@ def main():
                 # if any prey got eaten last round, use it
                 if len(env.eaten_prey) != 0:
                     tmpidx, ag = env.eaten_prey.pop()
-                    env.state = env.index_to_state(index=tmpidx, ag=ag)
+                    state = env.index_to_state(index=tmpidx, ag=ag)
 
-                    if env.state[-1] is None:
-                        env.state[-1] = int(ag.food_reserve)
+                    if state[-1] is None:
+                        state[-1] = int(ag.food_reserve)
 
-                    state = env.state
+                    env.state = state
                     model = PreyModel
                     action = ac.select_action(model=model, agent=ag,
                                               state=state)

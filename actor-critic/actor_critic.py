@@ -1,7 +1,7 @@
 """This file provides the functionality for the actor critic neural network."""
 
 import numpy as np
-from collections import namedtuple
+from collections import namedtuple, deque
 from typing import Optional
 
 import torch
@@ -85,25 +85,25 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
     """Calculate the losses and backprop them through the models NN."""
     # initialize a few variables
     eps = np.finfo(np.float32).eps  # machine epsilon
-    losses = []
-    returns_to_average = []
+    losses = deque()
+    returns_to_average = deque()
     for (_, agent_rewards, saved_actions) in history:
 
         R = 0  # The discounted reward
-        rewards = []
-        policy_losses = []
-        state_value_losses = []
+        rewards = deque()
+        policy_losses = deque()
+        state_value_losses = deque()
 
-        # get saved actions
-        # saved_actions = model.saved_actions
+        # reverse rewards (its a deque!)
+        agent_rewards.reverse()
 
         # iterate over all rewards that we got during the play
-        for r in agent_rewards[::-1]:  # backwards to account for the more recent actions
+        for r in agent_rewards:  # backwards to account for the more recent actions
             returns_to_average.append(r)  # for later averaging
             R = r + gamma * R  # discount!
-            rewards.append(R)  # append + [::-1] is faster than insert(0,*)
+            rewards.appendleft(R)  # deque power baby!
 
-        rewards = torch.Tensor(rewards[::-1])  # backwardss
+        rewards = torch.Tensor(rewards)
         rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
         # I think the eps should take care of my problem of NaNs. Somehow it
         # doesn't work, but the effect is the same as if I just switch the NaNs
@@ -133,12 +133,12 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
     optimizer.step()
 
     # free memory
-    del losses[:]
-    
+    losses.clear()  # its a deque
+
     # if output is wanted
     if return_means:
         ret_avg = np.mean(returns_to_average)
-        del returns_to_average[:]
+        returns_to_average.clear()
         return loss, ret_avg
 
     # clear memory from unneeded variables

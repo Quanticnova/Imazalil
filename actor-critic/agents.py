@@ -1,7 +1,7 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
 # import uuid
-from collections import namedtuple
+from collections import namedtuple, deque
 from typing import Callable, NamedTuple
 
 memory = namedtuple('Memory', ('States', 'Rewards', 'Actions'))
@@ -64,7 +64,7 @@ class Agent:
         if mem is not None:
             self.memory = mem
         else:
-            self.memory = memory([], [], [])  # initialize empty lists
+            self.memory = memory(deque(), deque(), deque())  # initialize empty lists
 
     # magic method ------------------------------------------------------------
     def __str__(self) -> str:
