@@ -18,13 +18,16 @@ import actor_critic as ac  # also ensures GPU usage when available
 parser = ap.ArgumentParser(description="Command line options for the simulation script.")
 parser.add_argument("--resume", type=str, default="",
                     help="resume simulation from given state")
+parser.add_argument("--config", type=str, default="simulation_config.yml",
+                    help="load the specified configuration file")
 
 # load Args
 args = parser.parse_args()
 arg_res = args.resume  # resume filepath
+arg_cfg = args.config  # configuration file
 
 # load config files.....
-with open("simulation_config.yml", "r") as ymlfile:
+with open(arg_cfg, "r") as ymlfile:
     cfg = yaml.load(ymlfile)
 
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
