@@ -66,6 +66,9 @@ avg = {'mean_gens': deque(),  # in step units
        'mean_prey_loss': deque(),  # in episode units
        'mean_pred_loss': deque()}
 
+# deque of episode/step pairs
+epstep = deque()  # list of tuples of episode/step number
+
 # simulation parameters
 resume_pars = {'last_episode': 0}
 
@@ -99,7 +102,8 @@ save_state = {'PreyState': PreyModel.state_dict(),
               'mean_prey_rewards': avg['mean_prey_rewards'],
               'mean_pred_rewards': avg['mean_pred_rewards'],
               'mean_prey_loss': avg['mean_prey_loss'],
-              'mean_pred_loss': avg['mean_pred_loss']}
+              'mean_pred_loss': avg['mean_pred_loss'],
+              'epstep': epstep}
 
 
 def save():
@@ -171,6 +175,10 @@ def main():
                     print(":: Breakpoint reached: Predators: {}\t Prey: {}"
                           "".format(len(env._agents_tuple.Predator),
                                     len(env._agents_tuple.Prey)))
+
+                    # save the episode number with number of steps
+                    epstep.append((i_eps, _))
+
                     break
 
             if done:
