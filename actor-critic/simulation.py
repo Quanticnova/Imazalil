@@ -86,6 +86,9 @@ if resume is not None:
         if p in resume:
             resume_pars[p] = resume[p]
 
+    if 'epstep' in resume:
+        epstep = resume['epstep']
+
 PreyOptimizer = optim.Adam(PreyModel.parameters(), lr=1e-4)
 PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=1e-4)
 
