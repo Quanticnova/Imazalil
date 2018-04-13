@@ -14,15 +14,23 @@ class Agent:
     It has the following attributes:
         - food_reserve
         - max_food_reserve
-        - generation
+        - generation, a counter, representing the number of parents
         - p_breed, the breeding probability
-        - .... more to come
+        - kin, a string providing the type of agent
+        - memory, a named tuple of deques saving the agents' states, rewards
+            and actions
+        - kwargs, a dictionary storing every additional property that might
+            find its way into the class call.
+
+    class constants:
+        - HEIRSHIP, a list of properties to pass down to the next generation
 
     Accessing the attributes is done via properties and setter, if necessary.
+
+    The only necessary argument to specify is the food reserve. The rest is optional.
     """
 
     # class constants
-    # _UUID_LENGTH = len(uuid.uuid4().hex)
     HEIRSHIP = ['max_food_reserve', 'generation', 'p_breed', '_kwargs']
 
     # slots -------------------------------------------------------------------
@@ -38,7 +46,6 @@ class Agent:
         self._food_reserve = 0
         self._max_food_reserve = None
         self._generation = None
-        # self._uuid = None
         self._p_breed = 1.0
         self._kin = None
         self._kwargs = kwargs  # just set the value directly here.
@@ -47,7 +54,6 @@ class Agent:
         # Set property managed attributes
         self.food_reserve = food_reserve
         self.p_breed = p_breed
-        # self.uuid = self._generate_uuid()
 
         if kin:  # if kin is given, set kin
             self.kin = kin
@@ -153,31 +159,6 @@ class Agent:
         else:
             self._generation = generation
 
-    '''
-    # id
-    @property
-    def uuid(self) -> str:
-        """The uuid of the agent."""
-        return self._uuid
-
-    @uuid.setter
-    def uuid(self, uuid: str) -> None:
-        """The uuid setter."""
-        if not isinstance(uuid, str):
-            raise TypeError("uuid can only be of type str, but {} was given."
-                            "".format(type(uuid)))
-
-        elif len(uuid) < self._UUID_LENGTH:
-            raise ValueError("uuid must be of length {} but given uuid {} has "
-                             "length {}.".format(self._UUID_LENGTH, uuid,
-                                                 len(uuid)))
-        elif self.uuid:
-            raise RuntimeError("uuid is already set.")
-
-        else:
-            self._uuid = uuid
-
-    '''
     # breeding probability
     @property
     def p_breed(self) -> float:
@@ -235,12 +216,8 @@ class Agent:
             self._memory = memory
 
     # staticmethods -----------------------------------------------------------
-    '''
-    @staticmethod
-    def _generate_uuid():
-        """Generate a uuid for an agent."""
-        return uuid.uuid4().hex
-    '''
+    # no staticmethods so far...
+
     # classmethods ------------------------------------------------------------
     @classmethod
     def _procreate_empty(cls, *, food_reserve: int) -> Callable:
@@ -276,10 +253,11 @@ class Predator(Agent):
     """Predator class derived from Agent.
 
     This provides (additionally to class Agent):
+        - p_eat, the probability to eat a prey agent (should be defined as
+            1-p_flee), is here for simplicity. (TODO: fix that)
     """
 
     # class constants
-    # _UUID_LENGTH = Agent._UUID_LENGTH
     HEIRSHIP = Agent.HEIRSHIP + ['p_eat']
 
     # slots -------------------------------------------------------------------
@@ -339,8 +317,8 @@ class Prey(Agent):
     """Prey class derived from Agent.
 
     This provides (additionally to class Agent):
-        - specified uuid (leading "B_")
         - p_flee, the fleeing probability
+        - got_eaten, boolean flag to specify whether a prey got eaten or not.
     """
 
     # class constants
