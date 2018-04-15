@@ -9,15 +9,30 @@ from collections import namedtuple, deque
 from typing import Union, Callable, NamedTuple
 from gym.utils import seeding
 
-from tools import DeepChainMap, type_check, timestamp
+from tools import type_check, timestamp
 
-hist = namedtuple('history', ('Predator', 'Prey'))
+hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
 
 
 class Environment:
     """The environment class.
 
-    more docstring to come!
+    It has the following attributes:
+        - dim, a float or tuple describing the dimensions of the grid
+        - densities, float or tuple desc. the agent densities on the grid
+        - agent_types, Callable or tuple of Callables, contains agent functors
+        - agent_kwargs, a dictionary to be passed down to the agents
+        - max_pop, the maximal population on the grid = prod(dim) because only
+            only one agent is allowed per cell
+        - env, numpy array with shape=dim, contains the agent objects in their
+            corresponding cell
+        - agents_set, a set of all agents on the grid at the moment
+        - agents_tuple, named tuple with one set for each agent_type
+        - _np_random, a variable needed for seeding
+        - history, a named tuple with one deque each agent_type to store all
+            experiences an agent undergoes in its life
+
+    Most of the attributes are property managed.
     """
 
     # slots -------------------------------------------------------------------
@@ -50,10 +65,6 @@ class Environment:
         if isinstance(self.agent_types, Callable):
             self.agent_types = [self.agent_types]  # ensure iterable
 
-        # get the names of agent types and create named tuple template
-        # fn  = [at.__name__ for at in self.agent_types]
-        # self._agent_named_properties = namedtuple('property', fn)
-
         # store agent_kwargs as attributes
         self.agent_kwargs = agent_kwargs
 
@@ -63,7 +74,8 @@ class Environment:
         # create named tuple
         agnts = namedtuple('agent_types', [a.__name__ for a in
                            self.agent_types])
-        # initialise with empty dicts
+
+        # initialise with empty sets
         self._agents_tuple = agnts(*[set() for _ in self.agent_types])
         self._agents_set = set()
         for s in self._agents_tuple:
@@ -213,6 +225,28 @@ class GridPPM(Environment):
     """The Predator Prey Model Grid class.
 
     This class provides the functionality for PPMs in connection with neural networks and learning. Some basic functionality are methods like `move`, `eat` and `procreate`. The class also provides methods necessary for the learning process, like `reset`, `step` and (hopefully soon) `render`.
+
+    It has the following attributes:
+        - action_lookup, a dict which maps numbers between 0 and 26 to actions
+            like moving, eating and procreating
+        - shuffled_agent_list, a list of shuffled array indices where agents
+            are placed on the grid at the creation time of the list
+        - _nbh_lr, int, the neighbourhood lower range, needed for slicing the
+            right neighbourhood for a given agent from env.
+        - _nbh_ur, int, the neighbourhood upper range.
+        - state, numpy array, containing the neighbourhood + food reserve of
+            the currently active agent.
+        - eaten_prey, a list, each prey that got eaten is put there to be
+            handled in a special way.
+        - _nbh_type, int, specifies the kind of neighbourhood, i.e. 9, 25, 49..
+        - _nbh_range, int, used in conjunction with the other _nbh_* attributes
+
+    class constants:
+        - REWARDS, a dictionary that maps representations of actions to actual
+            rewards.
+        - KIN_LOOKUP, a dictionary that maps agent.__name__'s to int.
+
+    Only nbh_type is property managed, all other _nbh_* attributes are set within the nbh_type property method.
     """
 
     REWARDS = {"wrong_action": -1,  # for every wrong action
@@ -239,7 +273,7 @@ class GridPPM(Environment):
                          **agent_kwargs)
 
         # initialise empty environment
-        self._env = np.empty(self.max_pop, dtype=object)  # FIXME: no hardcoding
+        self._env = np.empty(self.max_pop, dtype=object)
 
         # initialize other variables
         self.shuffled_agent_list = None
@@ -426,7 +460,6 @@ class GridPPM(Environment):
         """Delete the given agent from the environment and replace its position with None."""
         ag = self.env[index]
         if ag is not None:
-            # ag = self._agents_dict[uuid]
             # record history in the right list
             getattr(self.history, ag.kin).append(ag.memory)
             self._agents_set.remove(ag)  # only deletes the set entry
@@ -454,17 +487,10 @@ class GridPPM(Environment):
         self._add_to_agents_tuple(newborn=newborn)
         self.env[target_index] = newborn  # we assume that the index is not occupied
 
-    '''
-    # index to agent
-    # @_index_test_ndarray
-    def _idx_to_ag(self, index: np.ndarray) -> Callable:
-        """Return the agent object corresponding to a given index."""
-        return self._agents_dict[self.env[tuple(index)]]
-    '''
-
     # create shuffled list of agents
     def create_shuffled_agent_list(self) -> list:
         """Return a shuffled deque of (y,x) index arrays where the agents (at deque creation time) are."""
+        # numpy is stupid and doesn't allow pep8 syntax like "env is not None"
         y, x = np.where(self.env != None)  # get indices
         agent_list = deque(i for i in zip(y, x))  # create deque
         np.random.shuffle(agent_list)
@@ -495,7 +521,7 @@ class GridPPM(Environment):
         # it can happen, that the index points to an empty space in the environment. This is due to the fact, that an index in the shuffled list doesn't get removed, if a prey got eaten. thus, empty cells are just ignored.
         state = []
         # check if agent has memory:
-        if ag is not None:
+        if ag is not None:  # if ag is additionally set, directly get state
             if ag.memory.States:
                 state = ag.memory.States[-1]
                 return state
@@ -520,21 +546,25 @@ class GridPPM(Environment):
                 return np.array(state)
 
     # neighbourhood
-
     def neighbourhood(self, index: tuple) -> np.array:
-        """Return the neighbourhood specified in simulation config."""
+        """Return the neighbourhood specified in simulation config.
+
+        For the edge cases slice doesn't work so that has to be circumvented
+        with this ugly code. Sorry dear reader. :-/
+        """
         y, x = index
         idx = np.array(index)  # needed for computation
         if(np.any((idx - self._nbh_range) < 0) or
-           np.any((idx + self._nbh_range) >= self.dim)):
+           np.any((idx + self._nbh_range) >= self.dim)):  # check if edge case
             nbh = deque()
+            # manually calculate slice indices
             for j in range(self._nbh_lr, self._nbh_ur):
                 for i in range(self._nbh_lr, self._nbh_ur):
                     new_idx = tuple((idx + np.array([j, i])) % self.dim)
                     nbh.append(self.env[new_idx])  # append grid contents
-            nbh = np.array(nbh).ravel()
+            nbh = np.array(nbh).ravel()  # flatten array
 
-        else:
+        else:  # directly return sliced and flattened array
             nbh = self.env[slice(y + self._nbh_lr, y + self._nbh_ur),
                            slice(x + self._nbh_lr, x + self._nbh_ur)].ravel()
         return nbh
@@ -572,6 +602,7 @@ class GridPPM(Environment):
             # check if move is possible
             delta = self._target_to_value(target)
             target_index = tuple((np.array(index) + delta) % self.dim)  # taking care of bounds
+
             if self.env[target_index] is not None:
                 return self.REWARDS['wrong_action']  # negative
 
@@ -720,16 +751,12 @@ class GridPPM(Environment):
     # methods for actor-critic ------------------------------------------------
     def reset(self) -> tuple:
         """Reset the environment and return the state and the object of the first popped element of the shuffled agents list."""
-        # create named tuple template
-        #agnts = namedtuple('agent_types', [a.__name__ for a in
-        #                   self.agent_types])
-
-        # set to empty dicts
+        # clear the sets
         self._agents_tuple.Predator.clear()
         self._agents_tuple.Prey.clear()
         self._agents_set.clear()
 
-        # clear Environment
+        # empty Environment
         self._env = np.empty(self.max_pop, dtype=object)
 
         # populate the grid and agent dicts
@@ -800,7 +827,7 @@ class GridPPM(Environment):
 
     def render(self, *, episode: int, step: int, figsize: tuple, filepath: str,
                dpi: int, fmt: str, **kwargs):
-        """The method visualizes the simulations."""
+        """The method visualizes the simulation timesteps."""
         plotarr = np.zeros(shape=np.shape(self.env))
         y, x = np.where(self.env != None)
 
