@@ -809,8 +809,9 @@ class GridPPM(Environment):
             # since the episode is now finished, append the rest of the agents'
             # memories to the environments history
             for ag in self._agents_set:
-                getattr(self.history, ag.kin).append(ag.memory)
-                
+                if ag.memory.Rewards:  # if agent actually has memory
+                    getattr(self.history, ag.kin).append(ag.memory)
+
         else:
             done = False  # no harm in being explicit
 
