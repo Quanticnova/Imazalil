@@ -805,6 +805,12 @@ class GridPPM(Environment):
 
         if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
+
+            # since the episode is now finished, append the rest of the agents'
+            # memories to the environments history
+            for ag in self._agents_set:
+                getattr(self.history, ag.kin).append(ag.memory)
+                
         else:
             done = False  # no harm in being explicit
 
