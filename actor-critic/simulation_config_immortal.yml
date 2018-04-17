@@ -1,0 +1,35 @@
+# configuration file for the actor-critic PPM
+Model:
+    dim:                  !!python/tuple [10, 10]  # dimensionality
+    densities:            !!python/tuple [0.01, 0.01]  # Predator, Prey
+    food_reserve:         0
+    # max_food_reserve:     8
+    generation:           0
+    neighbourhood:        49  # only squares of odd numbers, e.g. 9, 25, 49
+    p_breed:              0.4
+    p_flee:               0.4
+    p_eat:                0.6  # = 1-p_flee
+    rewards:
+      wrong_action:       -1
+      default_prey:       1
+      default_predator:   1
+      indifferent:        0
+      succesful_predator: 5
+      offspring:          20
+      death_starvation:   -5
+      death_prey:         -5
+Sim:
+    steps:              1000 # training with more than 1000 timesteps reeeeeeeally slows down the optimization
+    episodes:           10000
+    save_state_to:      "plots/isolation/"  # store simulation
+    resume_state_from:  ""  # resume but is also command line option
+    record_values:      "generation, reward"
+    save_state_every:   50  # episodes
+
+Plot:
+    every:              100
+    render:             True
+    filepath:           "plots/isolation/"
+    figsize:            !!python/tuple [9,12]
+    fmt:                "png"
+    dpi:                300
