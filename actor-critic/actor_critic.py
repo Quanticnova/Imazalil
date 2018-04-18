@@ -19,6 +19,8 @@ LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
 Tensor = FloatTensor
 
+dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+
 # instance of namedtuple to be used in policy
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
@@ -70,7 +72,7 @@ class Policy(nn.Module):
 def select_action(*, model, agent, state) -> float:
     """Select an action based on the weighted possibilities given as the output from the model."""
     agent.memory.States.append(state)  # save the state
-    state = torch.from_numpy(state).float()  # float creates a float tensor
+    state = torch.from_numpy(state).float().type(dtype)  # float creates a float tensor
     probs, state_value = model(Variable(state))  # propagate the state as Variable
     cat_dist = Categorical(probs)  # categorical distribution
     action = cat_dist.sample()  # I think I should e-greedy right at this point
@@ -117,7 +119,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
             policy_losses.append(-log_prob * reward)
             # calculate the (smooth) L^1 loss = least absolute deviation
             state_value_losses.append(F.smooth_l1_loss(state_value,
-                                      Variable(Tensor([r]))))  # gpu 
+                                      Variable(Tensor([r]))))  # gpu
 
         # empty the gradient of the optimizer
         optimizer.zero_grad()
