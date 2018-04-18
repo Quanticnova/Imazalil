@@ -62,6 +62,12 @@ env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
 PreyModel = ac.Policy(inputs=inp)
 PredatorModel = ac.Policy(inputs=inp)
+
+# use gpu if available --------------------------------------------------------
+if use_cuda:
+    PreyModel.cuda()
+    PredatorModel.cuda()
+
 # averages
 avg = {'mean_gens': deque(),  # in step units
        'mean_prey_rewards': deque(),  # in episode units
@@ -117,12 +123,6 @@ def save():
     print("\n: Storing the following keys: {}".format(save_state.keys()))
     filename = cfg['Sim']['save_state_to'] + "state_" + timestamp()
     ac.save_checkpoint(state=save_state, filename=filename)
-
-
-# use gpu if available --------------------------------------------------------
-if use_cuda:
-    PreyModel.cuda()
-    PredatorModel.cuda()
 
 # main loop -------------------------------------------------------------------
 @keyboard_interrupt_handler(save=save, abort=None)

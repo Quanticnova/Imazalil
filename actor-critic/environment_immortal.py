@@ -618,7 +618,7 @@ class GridPPM(Environment):
                 self.env[target_index] = self.env[index]
                 self.env[index] = None  # clearing the previous position
 
-                return self.REWARDS['indifferent']
+                return self.REWARDS['default_prey']
         return move_agent
 
     # eating
