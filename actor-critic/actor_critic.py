@@ -103,7 +103,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
             R = r + gamma * R  # discount!
             rewards.appendleft(R)  # deque power baby!
 
-        rewards = torch.Tensor(rewards)
+        rewards = Tensor(rewards)  # use gpu if available
         rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
         # I think the eps should take care of my problem of NaNs. Somehow it
         # doesn't work, but the effect is the same as if I just switch the NaNs
@@ -117,7 +117,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
             policy_losses.append(-log_prob * reward)
             # calculate the (smooth) L^1 loss = least absolute deviation
             state_value_losses.append(F.smooth_l1_loss(state_value,
-                                      Variable(torch.Tensor([r]))))
+                                      Variable(Tensor([r]))))  # gpu 
 
         # empty the gradient of the optimizer
         optimizer.zero_grad()

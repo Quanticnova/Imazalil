@@ -21,6 +21,9 @@ parser.add_argument("--resume", type=str, default="",
 parser.add_argument("--config", type=str, default="simulation_config.yml",
                     help="load the specified configuration file")
 
+# if gpu is to be used
+use_cuda = torch.cuda.is_available()
+
 # load Args
 args = parser.parse_args()
 arg_res = args.resume  # resume filepath
@@ -115,6 +118,11 @@ def save():
     filename = cfg['Sim']['save_state_to'] + "state_" + timestamp()
     ac.save_checkpoint(state=save_state, filename=filename)
 
+
+# use gpu if available --------------------------------------------------------
+if use_cuda:
+    PreyModel.cuda()
+    PredatorModel.cuda()
 
 # main loop -------------------------------------------------------------------
 @keyboard_interrupt_handler(save=save, abort=None)
