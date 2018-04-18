@@ -460,8 +460,9 @@ class GridPPM(Environment):
         """Delete the given agent from the environment and replace its position with None."""
         ag = self.env[index]
         if ag is not None:
-            # record history in the right list
-            getattr(self.history, ag.kin).append(ag.memory)
+            if ag.memory.Rewards:
+                # record history in the right list
+                getattr(self.history, ag.kin).append(ag.memory)
             self._agents_set.remove(ag)  # only deletes the set entry
             getattr(self._agents_tuple, ag.kin).remove(ag)  # same as above
             del ag
