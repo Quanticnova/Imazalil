@@ -30,6 +30,11 @@ arg_cfg = args.config  # configuration file
 with open(arg_cfg, "r") as ymlfile:
     cfg = yaml.load(ymlfile)
 
+# if gpu is to be used
+mode = cfg['Network']['mode']
+use_cuda = torch.cuda.is_available() if mode == 'gpu' else False
+ac.init(mode=mode)
+
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
 
 resume = None  # initialize
@@ -56,9 +61,15 @@ env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
-inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
-PreyModel = ac.Policy(inputs=inp)
-PredatorModel = ac.Policy(inputs=inp)
+# inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
+PreyModel = ac.Policy(**cfg['Network']['layers'])
+PredatorModel = ac.Policy(**cfg['Network']['layers'])
+
+# use gpu if available --------------------------------------------------------
+if use_cuda:
+    PreyModel.cuda()
+    PredatorModel.cuda()
+
 # averages
 avg = {'mean_gens': deque(),  # in step units
        'mean_prey_rewards': deque(),  # in episode units
@@ -187,45 +198,67 @@ def main():
             if done:
                 break
             env.create_shuffled_agent_list()
-            print("::: Created new shuffled agents list with {} individuals."
-                  "".format(len(env.shuffled_agent_list)))
+            # print("::: Created new shuffled agents list with {} individuals."
+            #      "".format(len(env.shuffled_agent_list)))
             # mean value output
-            gens = deque()
-            for a in env._agents_set:
+            # gens = deque()
+            # for a in env._agents_set:
                 # for a in env._agents_dict.values():
-                gens.append(a.generation)
+            #    gens.append(a.generation)
 
-            avg['mean_gens'].append(np.mean(gens))
-            print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
-            gens.clear()  # free memory
+            # avg['mean_gens'].append(np.mean(gens))
+            # print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
+            # gens.clear()  # free memory
+
+            # print food reserve
+            mean_prey_fr = np.mean([ag.food_reserve for ag in env._agents_tuple.Prey])
+            mean_pred_fr = np.mean([ag.food_reserve for ag in env._agents_tuple.Predator])
+            print("::: Preys:\t{}, mean food reserve: {}".format(
+                  len(env._agents_tuple.Prey), mean_prey_fr))
+            print("::: Predators:\t{}, mean food reserve: {}".format(
+                  len(env._agents_tuple.Predator), mean_pred_fr))
 
             # prepare next step
             idx = env.shuffled_agent_list.pop()
             env.state = env.index_to_state(index=idx)
             state = env.state
 
+        # if actual timestep limit is reached append agent memory to history
+        if not done:
+            for ag in env._agents_set:
+                if ag.memory.Rewards:  # if agent actually has memory
+                    getattr(env.history, ag.kin).append(ag.memory)
+
         print("\n: Episode Runtime: {}".format(timestamp(return_obj=True) -
                                                eps_time))
-        print("\n: optimizing now...")
-        opt_time_start = timestamp(return_obj=True)
-        l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
-                                  history=env.history.Prey, gamma=0.05,
-                                  return_means=True)
-        print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
-              "".format(l.data[0], mr))
-        avg['mean_prey_loss'].append(l.data[0])
-        avg['mean_prey_rewards'].append(mr)
 
-        l, mr = ac.finish_episode(model=PredatorModel,
-                                  optimizer=PredatorOptimizer,
-                                  history=env.history.Predator, gamma=0.05,
-                                  return_means=True)
-        print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
-              "".format(l.data[0], mr))
-        avg['mean_pred_loss'].append(l.data[0])
-        avg['mean_pred_rewards'].append(mr)
+        # only do updates if both kins have a history
+        if len(env.history.Predator) and len(env.history.Prey):
+            print("\n: optimizing now...")
+            opt_time_start = timestamp(return_obj=True)
+            l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
+                                      history=env.history.Prey,
+                                      gamma=cfg['Network']['gamma'],
+                                      return_means=True)
+            print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
+                  "".format(l.data[0], mr))
+            avg['mean_prey_loss'].append(l.data[0])
+            avg['mean_prey_rewards'].append(mr)
 
-        print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
+            l, mr = ac.finish_episode(model=PredatorModel,
+                                      optimizer=PredatorOptimizer,
+                                      history=env.history.Predator,
+                                      gamma=cfg['Network']['gamma'],
+                                      return_means=True)
+            print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
+                  "".format(l.data[0], mr))
+            avg['mean_pred_loss'].append(l.data[0])
+            avg['mean_pred_rewards'].append(mr)
+
+            print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
+
+        else:
+            print("\n: Not enough history to train...")
 
     print("\n: Entire simulation runtime: {}".format(timestamp(return_obj=True) - inittime))
 

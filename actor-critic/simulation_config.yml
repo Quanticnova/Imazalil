@@ -1,14 +1,15 @@
 # configuration file for the actor-critic PPM
 Model:
-    dim:                  !!python/tuple [64, 64]  # dimensionality
-    densities:            !!python/tuple [0.2, 0.215]  # Predator, Prey
-    food_reserve:         4
-    max_food_reserve:     8
+    dim:                  !!python/tuple [10, 10]  # dimensionality
+    densities:            !!python/tuple [0.01, 0.01]  # Predator, Prey
+    food_reserve:         0
+    # max_food_reserve:     8
     generation:           0
-    neighbourhood:        25  # only squares of odd numbers, e.g. 9, 25, 49
+    neighbourhood:        49  # only squares of odd numbers, e.g. 9, 25, 49
     p_breed:              0.4
     p_flee:               0.4
     p_eat:                0.6  # = 1-p_flee
+    mortality:            False  # if False, agents are immortal, can't starve
     rewards:
       wrong_action:       -1
       default_prey:       1
@@ -18,18 +19,30 @@ Model:
       offspring:          20
       death_starvation:   -5
       death_prey:         -5
+      default:            1
 Sim:
-    steps:              1000
+    steps:              1000 # training with more than 1000 timesteps reeeeeeeally slows down the optimization
     episodes:           10000
-    save_state_to:      "plots/test_64x64/"  # store simulation
+    save_state_to:      "plots/isolation/"  # store simulation
     resume_state_from:  ""  # resume but is also command line option
     record_values:      "generation, reward"
-    save_state_every:   100  # episodes
+    save_state_every:   50  # episodes
 
 Plot:
-    every:              20
+    every:              100
     render:             True
-    filepath:           "plots/test_64x64/"
+    filepath:           "plots/isolation/"
     figsize:            !!python/tuple [9,12]
     fmt:                "png"
     dpi:                300
+
+Network:
+    mode:               'cpu'  # can also be 'gpu'
+    layers:             # I still need a convenient way to describe this
+      input:            !!python/tuple [50, 40]  # Model -> neighbourhood + 1
+      hidden1:          !!python/tuple [40, 40]
+      hidden2:          !!python/tuple [40, 40]
+      hidden3:          !!python/tuple [40, 40]
+      action_head:      !!python/tuple [40, 27]
+      value_head:       !!python/tuple [40, 1]
+    gamma:              0.9  # discount factor
