@@ -18,6 +18,7 @@ Model:
       offspring:          20
       death_starvation:   -5
       death_prey:         -5
+      default:            1
 Sim:
     steps:              1000 # training with more than 1000 timesteps reeeeeeeally slows down the optimization
     episodes:           10000

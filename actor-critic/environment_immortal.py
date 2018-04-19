@@ -256,7 +256,8 @@ class GridPPM(Environment):
                "offspring": 5,  # for succesful procreation
                "death_starvation": -3,  # starvation
                "death_prey": -3,  # being eaten
-               "indifferent": 0}
+               "indifferent": 0,
+               "default": 1}  # for both prey and predator
 
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
@@ -618,7 +619,7 @@ class GridPPM(Environment):
                 self.env[target_index] = self.env[index]
                 self.env[index] = None  # clearing the previous position
 
-                return self.REWARDS['default_prey']
+                return self.REWARDS['default']
         return move_agent
 
     # eating
