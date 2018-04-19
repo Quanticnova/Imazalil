@@ -9,6 +9,7 @@ Model:
     p_breed:              0.4
     p_flee:               0.4
     p_eat:                0.6  # = 1-p_flee
+    mortality:            False  # if False, agents are immortal, can't starve
     rewards:
       wrong_action:       -1
       default_prey:       1

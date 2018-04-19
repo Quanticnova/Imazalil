@@ -788,15 +788,17 @@ class GridPPM(Environment):
     def step(self, *, model: Callable, agent: Callable, index: tuple, action: int, returnidx: tuple=None) -> tuple:
         """The method starts from the current state, takes an action and records the return of it."""
         reward = 0  # initialize reward
-        # agent.food_reserve -= 1  # reduce food_reserve
+        # reduce food_reserve
+        agent.food_reserve -= 1 if self.agent_kwargs['mortality'] else 0
 
         if hasattr(agent, "got_eaten"):
             if agent.got_eaten:
                 reward = self.REWARDS['death_prey']
 
-        # if (agent.food_reserve <= 0) and (reward == 0):  # if agent not dead already
-            # self._die(index=index)
-            # reward = self.REWARDS['death_starvation']  # more death!
+        if self.agent_kwargs['mortality']:
+            if (agent.food_reserve <= 0) and (reward == 0):  # if agent not dead already
+                self._die(index=index)
+                reward = self.REWARDS['death_starvation']  # more death!
 
         if reward == 0:
             act = self.action_lookup[action]  # select action from lookup
