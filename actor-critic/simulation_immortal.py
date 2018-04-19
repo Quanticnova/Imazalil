@@ -21,9 +21,6 @@ parser.add_argument("--resume", type=str, default="",
 parser.add_argument("--config", type=str, default="simulation_config.yml",
                     help="load the specified configuration file")
 
-# if gpu is to be used
-use_cuda = torch.cuda.is_available()
-
 # load Args
 args = parser.parse_args()
 arg_res = args.resume  # resume filepath
@@ -32,6 +29,11 @@ arg_cfg = args.config  # configuration file
 # load config files.....
 with open(arg_cfg, "r") as ymlfile:
     cfg = yaml.load(ymlfile)
+
+# if gpu is to be used
+mode = cfg['Network']['mode']
+use_cuda = torch.cuda.is_available() if mode == 'gpu' else False
+ac.init(mode=mode)
 
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
 

@@ -1,5 +1,7 @@
 """This file provides the functionality for the actor critic neural network."""
 
+import warnings
+
 import numpy as np
 from collections import namedtuple, deque
 from typing import Optional
@@ -10,16 +12,35 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.distributions import Categorical
 
-# if gpu is to be used --------------------------------------------------------
-use_cuda = torch.cuda.is_available()
-if use_cuda:
-    print(": CUDA is available.")
-FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
-LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
-ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
-Tensor = FloatTensor
 
-dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+# set mode for the actor_critic
+def init(*, mode: str='cpu'):
+    """Set the mode of the actor critic model to either 'cpu' or 'gpu'."""
+    global FloatTensor
+    global Tensor
+    global dtype
+    global use_cuda
+
+    if mode == 'gpu':
+        use_cuda = torch.cuda.is_available()
+
+    elif mode == 'cpu':
+        use_cuda = False
+
+    else:
+        warnings.warn("Unknown mode '{}' given, proceeding in mode 'cpu'."
+                      "".format(mode), RuntimeWarning)
+        use_cuda = False
+
+    # if gpu is to be used ----------------------------------------------------
+    if use_cuda:
+        print(": CUDA is available.")
+    FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+    # LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
+    # ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
+    Tensor = FloatTensor
+    dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+
 
 # instance of namedtuple to be used in policy
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
@@ -113,7 +134,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
             R = r + gamma * R  # discount!
             rewards.appendleft(R)  # deque power baby!
 
-        rewards = Tensor(rewards)  # use gpu if available
+        rewards = torch.Tensor(rewards).type(dtype)  # use gpu if available
         rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
         # I think the eps should take care of my problem of NaNs. Somehow it
         # doesn't work, but the effect is the same as if I just switch the NaNs
@@ -127,7 +148,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
             policy_losses.append(-log_prob * reward)
             # calculate the (smooth) L^1 loss = least absolute deviation
             state_value_losses.append(F.smooth_l1_loss(state_value,
-                                      Variable(Tensor([r]))))  # gpu
+                                      Variable(torch.Tensor([r]).type(dtype))))
 
         # empty the gradient of the optimizer
         optimizer.zero_grad()
