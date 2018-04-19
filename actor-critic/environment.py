@@ -256,7 +256,8 @@ class GridPPM(Environment):
                "offspring": 5,  # for succesful procreation
                "death_starvation": -3,  # starvation
                "death_prey": -3,  # being eaten
-               "indifferent": 0}
+               "indifferent": 0,
+               "default": 1}  # for both prey and predator
 
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
@@ -460,12 +461,15 @@ class GridPPM(Environment):
         """Delete the given agent from the environment and replace its position with None."""
         ag = self.env[index]
         if ag is not None:
-            # record history in the right list
-            getattr(self.history, ag.kin).append(ag.memory)
+            if ag.memory.Rewards:
+                # record history in the right list
+                getattr(self.history, ag.kin).append(ag.memory)
+
             self._agents_set.remove(ag)  # only deletes the set entry
             getattr(self._agents_tuple, ag.kin).remove(ag)  # same as above
             del ag
             self.env[index] = None
+
         else:
             warnings.warn("Trying to delete an empty cell", RuntimeWarning)
 
@@ -603,7 +607,10 @@ class GridPPM(Environment):
             delta = self._target_to_value(target)
             target_index = tuple((np.array(index) + delta) % self.dim)  # taking care of bounds
 
-            if self.env[target_index] is not None:
+            if target == '':
+                return self.REWARDS['indifferent']  # just moving
+
+            elif self.env[target_index] is not None:
                 return self.REWARDS['wrong_action']  # negative
 
             else:
@@ -612,7 +619,7 @@ class GridPPM(Environment):
                 self.env[target_index] = self.env[index]
                 self.env[index] = None  # clearing the previous position
 
-                return self.REWARDS['indifferent']
+                return self.REWARDS['default']
         return move_agent
 
     # eating
@@ -781,17 +788,19 @@ class GridPPM(Environment):
     def step(self, *, model: Callable, agent: Callable, index: tuple, action: int, returnidx: tuple=None) -> tuple:
         """The method starts from the current state, takes an action and records the return of it."""
         reward = 0  # initialize reward
-        agent.food_reserve -= 1  # reduce food_reserve
+        # reduce food_reserve
+        agent.food_reserve -= 1 if self.agent_kwargs['mortality'] else 0
 
         if hasattr(agent, "got_eaten"):
             if agent.got_eaten:
                 reward = self.REWARDS['death_prey']
 
-        if (agent.food_reserve <= 0) and (reward == 0):  # if agent not dead already
-            self._die(index=index)
-            reward = self.REWARDS['death_starvation']  # more death!
+        if self.agent_kwargs['mortality']:
+            if (agent.food_reserve <= 0) and (reward == 0):  # if agent not dead already
+                self._die(index=index)
+                reward = self.REWARDS['death_starvation']  # more death!
 
-        elif reward == 0:
+        if reward == 0:
             act = self.action_lookup[action]  # select action from lookup
             reward = act(index=index)  # get reward for acting
             # for debugging: checking whether action rewards are valid
