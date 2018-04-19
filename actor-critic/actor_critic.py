@@ -13,7 +13,7 @@ from torch.distributions import Categorical
 # if gpu is to be used --------------------------------------------------------
 use_cuda = torch.cuda.is_available()
 if use_cuda:
-    print(": CUDA is available, using GPU...")
+    print(": CUDA is available.")
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
@@ -37,23 +37,30 @@ class Policy(nn.Module):
                  'action_head', 'value_head']
 
     # init --------------------------------------------------------------------
-    def __init__(self, inputs=10, outputs=27, *args, **kwargs):
+    def __init__(self, input: tuple, hidden1: tuple, hidden2: tuple,
+                 hidden3: tuple, action_head: tuple, value_head: tuple,
+                 *args, **kwargs):
         """Initialize the neural network and some of its attributes.
 
         Default input of 10 for 9 neighbourhood and food reserve.
         """
         super(Policy, self).__init__()  # call nn.Modules init
 
-        # initialize attributes
-        # self.saved_actions = []
-        # self.rewards = []
-
         # initialize layers
+        '''
         self.affine1 = nn.Linear(inputs, 64)  # first layer
         self.affine2 = nn.Linear(64, 128)  # second layer
         self.affine3 = nn.Linear(128, 256)  # third layer
         self.action_head = nn.Linear(256, outputs)  # 27 possible actions
         self.value_head = nn.Linear(256, 1)
+        '''
+
+        self.affine1 = nn.Linear(*input)
+        self.affine2 = nn.Linear(*hidden1)
+        self.affine3 = nn.Linear(*hidden2)
+        self.affine4 = nn.Linear(*hidden3)
+        self.action_head = nn.Linear(*action_head)
+        self.value_head = nn.Linear(*value_head)
 
     # methods -----------------------------------------------------------------
     def forward(self, input_vector: torch.Tensor) -> tuple:
@@ -61,6 +68,7 @@ class Policy(nn.Module):
         input_vector = F.relu(self.affine1(input_vector))  # Layer 1
         input_vector = F.relu(self.affine2(input_vector))  # Layer 2
         input_vector = F.relu(self.affine3(input_vector))  # Layer 3
+        input_vector = F.relu(self.affine4(input_vector))  # Layer 4
         action_scores = self.action_head(input_vector)  # action layer
         state_value = self.value_head(input_vector)  # state value layer
 
@@ -83,7 +91,7 @@ def select_action(*, model, agent, state) -> float:
 
 # defining what to do after the episode finished.
 def finish_episode(*, model, optimizer, history, gamma: float=0.1,
-                   return_means: bool=False) -> Optional[float]:
+                   return_means: bool=False) -> Optional[tuple]:
     """Calculate the losses and backprop them through the models NN."""
     # initialize a few variables
     eps = np.finfo(np.float32).eps  # machine epsilon

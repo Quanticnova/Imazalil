@@ -33,3 +33,14 @@ Plot:
     figsize:            !!python/tuple [9,12]
     fmt:                "png"
     dpi:                300
+
+Network:
+    mode:               'cpu'  # can also be 'gpu'
+    layers:             # I still need a convenient way to describe this
+      input:            !!python/tuple [50, 40]  # Model -> neighbourhood + 1
+      hidden1:          !!python/tuple [40, 40]
+      hidden2:          !!python/tuple [40, 40]
+      hidden3:          !!python/tuple [40, 40]
+      action_head:      !!python/tuple [40, 27]
+      value_head:       !!python/tuple [40, 1]
+    gamma:              0.9  # discount factor

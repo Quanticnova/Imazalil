@@ -59,9 +59,9 @@ env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
-inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
-PreyModel = ac.Policy(inputs=inp)
-PredatorModel = ac.Policy(inputs=inp)
+# inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
+PreyModel = ac.Policy(**cfg['Network']['layers'])
+PredatorModel = ac.Policy(**cfg['Network']['layers'])
 
 # use gpu if available --------------------------------------------------------
 if use_cuda:
@@ -123,6 +123,7 @@ def save():
     print("\n: Storing the following keys: {}".format(save_state.keys()))
     filename = cfg['Sim']['save_state_to'] + "state_" + timestamp()
     ac.save_checkpoint(state=save_state, filename=filename)
+
 
 # main loop -------------------------------------------------------------------
 @keyboard_interrupt_handler(save=save, abort=None)
@@ -228,26 +229,34 @@ def main():
 
         print("\n: Episode Runtime: {}".format(timestamp(return_obj=True) -
                                                eps_time))
-        print("\n: optimizing now...")
-        opt_time_start = timestamp(return_obj=True)
-        l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
-                                  history=env.history.Prey, gamma=0.05,
-                                  return_means=True)
-        print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
-              "".format(l.data[0], mr))
-        avg['mean_prey_loss'].append(l.data[0])
-        avg['mean_prey_rewards'].append(mr)
 
-        l, mr = ac.finish_episode(model=PredatorModel,
-                                  optimizer=PredatorOptimizer,
-                                  history=env.history.Predator, gamma=0.05,
-                                  return_means=True)
-        print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
-              "".format(l.data[0], mr))
-        avg['mean_pred_loss'].append(l.data[0])
-        avg['mean_pred_rewards'].append(mr)
+        # only do updates if both kins have a history
+        if len(env.history.Predator) and len(env.history.Prey):
+            print("\n: optimizing now...")
+            opt_time_start = timestamp(return_obj=True)
+            l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
+                                      history=env.history.Prey,
+                                      gamma=cfg['Network']['gamma'],
+                                      return_means=True)
+            print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
+                  "".format(l.data[0], mr))
+            avg['mean_prey_loss'].append(l.data[0])
+            avg['mean_prey_rewards'].append(mr)
 
-        print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
+            l, mr = ac.finish_episode(model=PredatorModel,
+                                      optimizer=PredatorOptimizer,
+                                      history=env.history.Predator,
+                                      gamma=cfg['Network']['gamma'],
+                                      return_means=True)
+            print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
+                  "".format(l.data[0], mr))
+            avg['mean_pred_loss'].append(l.data[0])
+            avg['mean_pred_rewards'].append(mr)
+
+            print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
+
+        else:
+            print("\n: Not enough history to train...")
 
     print("\n: Entire simulation runtime: {}".format(timestamp(return_obj=True) - inittime))
 
