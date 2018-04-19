@@ -218,6 +218,16 @@ def main():
             print("::: Predators:\t{}, mean food reserve: {}".format(
                   len(env._agents_tuple.Predator), mean_pred_fr))
 
+            # function calls
+            movecalls = np.sum([f[1].calls for f in
+                               sorted(env.action_lookup.items())[:9]])
+            eatcalls = np.sum([f[1].calls for f in
+                              sorted(env.action_lookup.items())[9:19]])
+            procreatecalls = np.sum([f[1].calls for f in
+                                    sorted(env.action_lookup.items())[19:]])
+            print("::: Move calls: {}\t Eat calls: {}\t Procreate calls: {}"
+                  "".format(movecalls, eatcalls, procreatecalls))
+
             # prepare next step
             idx = env.shuffled_agent_list.pop()
             env.state = env.index_to_state(index=idx)

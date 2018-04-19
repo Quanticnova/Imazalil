@@ -9,7 +9,7 @@ from collections import namedtuple, deque
 from typing import Union, Callable, NamedTuple
 from gym.utils import seeding
 
-from tools import type_check, timestamp
+from tools import type_check, timestamp, function_call_counter
 
 hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
 
@@ -592,6 +592,7 @@ class GridPPM(Environment):
     # @_argument_test_str
     def move(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed to move the agent."""
+        @function_call_counter
         def move_agent(index: tuple) -> None:
             """Move the given agent to previously specified target.
 
@@ -626,6 +627,7 @@ class GridPPM(Environment):
     # @_argument_test_str
     def eat(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to eat."""
+        @function_call_counter
         def eat_and_move(index: tuple) -> None:
             """Try to eat the prey in target with probability p_eat = 1 - p_flee as agent from index.
 
@@ -701,6 +703,7 @@ class GridPPM(Environment):
     # @_argument_test_str
     def procreate(self, target: str) -> Callable:
         """Return a function to which an agent index can be passed and that agent tries to procreate with probability p_breed."""
+        @function_call_counter
         def procreate_and_move(index: tuple) -> None:
             """Try to have offspring in `target` with probability p_breed.
 
