@@ -78,7 +78,8 @@ avg = {'mean_gens': deque(),  # in step units
        'mean_prey_rewards': deque(),  # in episode units
        'mean_pred_rewards': deque(),
        'mean_prey_loss': deque(),  # in episode units
-       'mean_pred_loss': deque()}
+       'mean_pred_loss': deque(),
+       'moveatpro_counter': deque()}  # counted function calls in [timesteps]
 
 # deque of episode/step pairs
 epstep = deque()  # list of tuples of episode/step number
@@ -120,7 +121,8 @@ save_state = {'PreyState': PreyModel.state_dict(),
               'mean_pred_rewards': avg['mean_pred_rewards'],
               'mean_prey_loss': avg['mean_prey_loss'],
               'mean_pred_loss': avg['mean_pred_loss'],
-              'epstep': epstep}
+              'epstep': epstep,
+              'moveatpro_counter': avg['moveatpro_counter']}
 
 
 def save():
@@ -230,6 +232,10 @@ def main():
                                     sorted(env.action_lookup.items())[19:]])
             print("::: Move calls: {}\t Eat calls: {}\t Procreate calls: {}"
                   "".format(movecalls, eatcalls, procreatecalls))
+            avg['moveatpro_counter'].append((movecalls, eatcalls,
+                                             procreatecalls))
+            for f in env.action_lookup.values():
+                f.calls = 0  # reset the call counter
 
             # prepare next step
             idx = env.shuffled_agent_list.pop()
