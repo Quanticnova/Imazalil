@@ -2,6 +2,8 @@
 
 """This is an example simulation file for running a PPM simulation, using actor-critic method."""
 
+import warnings
+
 import yaml
 import numpy as np
 import torch
@@ -33,6 +35,7 @@ with open(arg_cfg, "r") as ymlfile:
 # if gpu is to be used
 mode = cfg['Network']['mode']
 use_cuda = torch.cuda.is_available() if mode == 'gpu' else False
+# make sure, that everything is ported to the gpu if one should be used
 ac.init(mode=mode)
 
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
@@ -40,10 +43,11 @@ cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
 resume = None  # initialize
 # if resume filepath is given, resume simulation from there
 if arg_res and cfg_res:
-    if arg_res != cfg_res:  # TODO priorize cmd arg over cfg
-        raise IOError("resume is specified twice and doesn't match. Don't"
-                      " know what to load...\nGiven paths:\n\t{}\n\t{}"
-                      "".format(arg_res, cfg_res))
+    if arg_res != cfg_res:  # cmd line arg > cfg arg
+        warnings.warn("resume is specified twice and doesn't match."
+                      "\nGiven paths:\n\t{}\n\t{}\nResuming from {} now..."
+                      "".format(arg_res, cfg_res, arg_res), UserWarning)
+        resume = torch.load(arg_res)
     else:
         print(": Resuming simulation from checkpoint {}".format(arg_res))
         resume = torch.load(arg_res)
@@ -61,7 +65,6 @@ env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
-# inp = cfg['Model']['neighbourhood'] + 1  # number of inputs to handle
 PreyModel = ac.Policy(**cfg['Network']['layers'])
 PredatorModel = ac.Policy(**cfg['Network']['layers'])
 
