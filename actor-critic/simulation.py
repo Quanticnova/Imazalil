@@ -138,7 +138,7 @@ def main():
     """Trying to pseudo code here."""
     inittime = timestamp(return_obj=True)  # get initial time datetime object
 
-    for i_eps in range(resume_pars['last_episode'], cfg['Sim']['episodes']):  # if resume is given, start from there
+    for i_eps in range(resume_pars['last_episode']+1, cfg['Sim']['episodes']):  # if resume is given, start from there
         # add entry to save_dict
         save_state['last_episode'] = i_eps
 
@@ -206,14 +206,13 @@ def main():
             # print("::: Created new shuffled agents list with {} individuals."
             #      "".format(len(env.shuffled_agent_list)))
             # mean value output
-            # gens = deque()
-            # for a in env._agents_set:
-                # for a in env._agents_dict.values():
-            #    gens.append(a.generation)
+            gens = deque()
+            for a in env._agents_set:
+                gens.append(a.generation)
 
-            # avg['mean_gens'].append(np.mean(gens))
-            # print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
-            # gens.clear()  # free memory
+            avg['mean_gens'].append(np.mean(gens))
+            print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
+            gens.clear()  # free memory
 
             # print food reserve
             mean_prey_fr = np.mean([ag.food_reserve for ag in env._agents_tuple.Prey])
