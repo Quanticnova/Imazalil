@@ -104,6 +104,9 @@ if resume is not None:
     if 'epstep' in resume:
         epstep = resume['epstep']
 
+    if 'last_episode' in resume:
+        resume_pars['last_episode'] += 1  # if resume, don't rerun the last step
+
 PreyOptimizer = optim.Adam(PreyModel.parameters(), lr=1e-4)
 PredatorOptimizer = optim.Adam(PredatorModel.parameters(), lr=1e-4)
 
@@ -138,7 +141,7 @@ def main():
     """Trying to pseudo code here."""
     inittime = timestamp(return_obj=True)  # get initial time datetime object
 
-    for i_eps in range(resume_pars['last_episode']+1, cfg['Sim']['episodes']):  # if resume is given, start from there
+    for i_eps in range(resume_pars['last_episode'], cfg['Sim']['episodes']):  # if resume is given, start from there
         # add entry to save_dict
         save_state['last_episode'] = i_eps
 
