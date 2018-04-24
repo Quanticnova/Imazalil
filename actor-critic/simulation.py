@@ -13,7 +13,7 @@ from collections import deque
 
 from agents import Predator, Prey
 from environment import GridPPM
-from tools import timestamp, keyboard_interrupt_handler
+from tools import timestamp, keyboard_interrupt_handler, sum_calls, chunkify
 import actor_critic as ac  # also ensures GPU usage when available
 
 # setup argparse options
@@ -78,11 +78,10 @@ avg = {'mean_gens': deque(),  # in step units
        'mean_prey_rewards': deque(),  # in episode units
        'mean_pred_rewards': deque(),
        'mean_prey_loss': deque(),  # in episode units
-       'mean_pred_loss': deque(),
-       'moveatpro_counter': deque()}  # counted function calls in [timesteps]
+       'mean_pred_loss': deque()}
 
 # deque of episode/step pairs
-epstep = deque()  # list of tuples of episode/step number
+epsbatch = deque()  # list of tuples of episode/step number
 
 # simulation parameters
 resume_pars = {'last_episode': 0}
@@ -101,8 +100,8 @@ if resume is not None:
         if p in resume:
             resume_pars[p] = resume[p]
 
-    if 'epstep' in resume:
-        epstep = resume['epstep']
+    # if 'epsbatch' in resume:
+    #     epsbatch = resume['epsbatch']
 
     if 'last_episode' in resume:
         resume_pars['last_episode'] += 1  # if resume, don't rerun the last step
@@ -124,8 +123,7 @@ save_state = {'PreyState': PreyModel.state_dict(),
               'mean_pred_rewards': avg['mean_pred_rewards'],
               'mean_prey_loss': avg['mean_prey_loss'],
               'mean_pred_loss': avg['mean_pred_loss'],
-              'epstep': epstep,
-              'moveatpro_counter': avg['moveatpro_counter']}
+              'epsbatch': epsbatch}
 
 
 def save():
@@ -134,12 +132,16 @@ def save():
     filename = cfg['Sim']['save_state_to'] + "state_" + timestamp()
     ac.save_checkpoint(state=save_state, filename=filename)
 
+    # clear episode/timestep/function call counter
+    epsbatch.clear()
+
 
 # main loop -------------------------------------------------------------------
 @keyboard_interrupt_handler(save=save, abort=None)
 def main():
     """Trying to pseudo code here."""
     inittime = timestamp(return_obj=True)  # get initial time datetime object
+    batch = deque()  # initial creation of a save object
 
     for i_eps in range(resume_pars['last_episode'], cfg['Sim']['episodes']):  # if resume is given, start from there
         # add entry to save_dict
@@ -194,20 +196,11 @@ def main():
                                                         action=action)
 
                 if done:
-                    print(":: Breakpoint reached: Predators: {}\t Prey: {}"
-                          "".format(len(env._agents_tuple.Predator),
-                                    len(env._agents_tuple.Prey)))
-
-                    # save the episode number with number of steps
-                    epstep.append((i_eps, _))
+                    print(":: Breakpoint reached -----------------------------")
 
                     break
 
-            if done:
-                break
-            env.create_shuffled_agent_list()
-            # print("::: Created new shuffled agents list with {} individuals."
-            #      "".format(len(env.shuffled_agent_list)))
+            # data analysis and storage ---------------------------------------
             # mean value output
             gens = deque()
             for a in env._agents_set:
@@ -226,18 +219,35 @@ def main():
                   len(env._agents_tuple.Predator), mean_pred_fr))
 
             # function calls
-            movecalls = np.sum([f[1].calls for f in
-                               sorted(env.action_lookup.items())[:9]])
-            eatcalls = np.sum([f[1].calls for f in
-                              sorted(env.action_lookup.items())[9:19]])
-            procreatecalls = np.sum([f[1].calls for f in
-                                    sorted(env.action_lookup.items())[19:]])
+            function_calls = []
+            func_list = [f for a, f in sorted(env.action_lookup.items())]
+            for chunk in chunkify(func_list, 9):  # see tools!
+                function_calls.append(sum_calls(chunk))  # see tools too here.
+
+            # movecalls = np.sum([f[1].calls for f in
+            #                   sorted(env.action_lookup.items())[:9]])
+            # eatcalls = np.sum([f[1].calls for f in
+            #                  sorted(env.action_lookup.items())[9:19]])
+            # procreatecalls = np.sum([f[1].calls for f in
+            #                        sorted(env.action_lookup.items())[19:]])
             print("::: Move calls: {}\t Eat calls: {}\t Procreate calls: {}"
-                  "".format(movecalls, eatcalls, procreatecalls))
-            avg['moveatpro_counter'].append((movecalls, eatcalls,
-                                             procreatecalls))
+                  "".format(*function_calls))
+            batch.append(function_calls)
+
             for f in env.action_lookup.values():
                 f.calls = 0  # reset the call counter
+
+            # simulation again ------------------------------------------------
+            if done:
+                # save the episode number with number of steps
+                # batch.append((i_eps, _))
+                epsbatch.append([(i_eps, _), batch.copy()])
+
+                # clear current batch deque
+                batch.clear()
+                break
+
+            env.create_shuffled_agent_list()
 
             # prepare next step
             idx = env.shuffled_agent_list.pop()

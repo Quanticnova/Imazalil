@@ -1,7 +1,8 @@
 """Docstring for the tools."""
 import sys
 import datetime as dt
-from typing import Callable, Optional
+import numpy as np
+from typing import Callable, Optional, Iterable
 from collections import ChainMap
 
 
@@ -28,6 +29,21 @@ def function_call_counter(func: Callable) -> Callable:
 
     helper.calls = 0
     return helper
+
+
+# summed up function counts for all actions of a single kind (e.g. eat, move..)
+def sum_calls(func_list: list) -> int:
+    """Iterate over all functions in func_list and sum the .calls variables."""
+    return np.sum([f.calls for f in func_list])
+
+
+def chunkify(blob: Iterable, chunksize: int) -> list:
+    """Return list of chunks of blob with chunksize.
+
+    If len(blob)/chunksize is not int then the last chunk is cut off.
+    """
+    return [blob[i*chunksize:(i+1)*chunksize] for i in
+            range(len(blob)//chunksize)]
 
 
 # function to be used as decorator
