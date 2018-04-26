@@ -195,7 +195,7 @@ def main():
                                                         index=idx,
                                                         action=action)
 
-                if done:
+                if done or ((_ + 1) % cfg['Sim']['steps'] == 0):
                     print(":: Breakpoint reached -----------------------------")
 
                     break
