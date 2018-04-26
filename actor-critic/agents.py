@@ -3,6 +3,7 @@
 # import uuid
 from collections import namedtuple, deque
 from typing import Callable, NamedTuple
+from torch.optim import Adam
 
 memory = namedtuple('Memory', ('States', 'Rewards', 'Actions'))
 
@@ -394,3 +395,105 @@ class Prey(Agent):
 
         else:
             self._got_eaten = got_eaten
+
+
+# -----------------------------------------------------------------------------
+class SmartGuy:
+    """The class provides a new type of agent that carries its own neural network (and optimizer).
+
+    It is meant to be used with the isolation environment, so that its behaviour can be studied there.
+    """
+
+    __slots__ = ['_policy', '_optimizer', '_kin', '_action_space']
+
+    def __init__(self, policy: Callable, optimizer: Callable, action_space: dict, kin: str):
+        """Initialize all necessary things."""
+        self._policy = None
+        self._optimizer = None
+        self._kin = None
+        self._action_space = None
+
+        # property managed attributes
+        self.policy = policy
+        self.optimizer = optimizer
+        self.kin = kin
+        self.action_space = action_space
+
+    # properties --------------------------------------------------------------
+    @property
+    def policy(self) -> Callable:
+        """Return the agents' policy."""
+        return self._policy
+
+    @policy.setter
+    def policy(self, policy: Callable) -> None:
+        """Set the agents' policy.
+
+        If policy is not a Callable a type error is raised.
+        """
+        if not callable(policy):
+            raise TypeError("policy needs to be callable but {} was given."
+                            "".format(type(policy)))
+
+        elif self.policy is not None:
+            raise RuntimeError("policy already set!")
+
+        else:
+            self._policy = policy
+
+    @property
+    def optimizer(self) -> Callable:
+        """Return the agents' optimizer."""
+        return self._optimizer
+
+    @optimizer.setter
+    def optimizer(self, optimizer: Callable) -> None:
+        """Set the agents' optimizer.
+
+        If optimizer is not a Callable a type error is raised.
+        """
+        if not isinstance(optimizer, Adam):  # FIXME also accept other optims
+            raise TypeError("optimizer needs to be callable but {} was given."
+                            "".format(type(optimizer)))
+
+        elif self.optimizer is not None:
+            raise RuntimeError("optimizer already set!")
+
+        else:
+            self._optimizer = optimizer
+
+    @property
+    def kin(self) -> str:
+        """Return the agents' kin."""
+        return self._kin
+
+    @kin.setter
+    def kin(self, kin: str) -> None:
+        """Set the agents' kin."""
+        if not isinstance(kin, str):
+            raise TypeError("kin needs to be string but {} was given."
+                            "".format(type(kin)))
+
+        elif self.kin is not None:
+            raise RuntimeError("kin is already set!")
+
+        else:
+            self._kin = kin
+
+    @property
+    def action_space(self) -> dict:
+        """Return the agents' action space."""
+        return self._action_space
+
+    @action_space.setter
+    def action_space(self, action_space: dict) -> None:
+        """Set the agents' action space."""
+        if not isinstance(action_space, dict):
+            raise TypeError("action space needs to be dict but {} was given."
+                            "".format(type(action_space)))
+
+        elif self.action_space is not None:
+            raise RuntimeError("action space is already set!")
+
+        else:
+            self._action_space = action_space
