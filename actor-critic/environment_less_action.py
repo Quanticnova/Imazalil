@@ -14,6 +14,17 @@ from tools import type_check, timestamp, function_call_counter
 hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
 
 
+def init(*, goal: str="training"):
+    """Initialize some global variables to set the environment to act in a specific behaviour.
+
+    Current global variables:
+        - goal: set the goal of the simulation; either training or testing
+    """
+    global training
+
+    training = True if goal == "training" else False  # quick and dirty
+
+
 class Environment:
     """The environment class.
 
@@ -475,7 +486,7 @@ class GridPPM(Environment):
         """Delete the given agent from the environment and replace its position with None."""
         ag = self.env[index]
         if ag is not None:
-            if ag.memory.Rewards:
+            if ag.memory.Rewards and training:
                 # record history in the right list
                 getattr(self.history, ag.kin).append(ag.memory)
 
@@ -837,16 +848,18 @@ class GridPPM(Environment):
                                    "".format(act, agent))
 
         # save the reward
-        agent.memory.Rewards.append(reward)
+        if training:
+            agent.memory.Rewards.append(reward)
 
         if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
 
             # since the episode is now finished, append the rest of the agents'
             # memories to the environments history
-            for ag in self._agents_set:
-                if ag.memory.Rewards:  # if agent actually has memory
-                    getattr(self.history, ag.kin).append(ag.memory)
+            if training:
+                for ag in self._agents_set:
+                    if ag.memory.Rewards:  # if agent actually has memory
+                        getattr(self.history, ag.kin).append(ag.memory)
 
         else:
             done = False  # no harm in being explicit

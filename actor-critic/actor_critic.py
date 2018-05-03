@@ -14,13 +14,18 @@ from torch.distributions import Categorical
 
 
 # set mode for the actor_critic
-def init(*, mode: str='cpu'):
+def init(*, mode: str='cpu', goal: str="training"):
     """Set the mode of the actor critic model to either 'cpu' or 'gpu'."""
     global FloatTensor
     global Tensor
     global dtype
     global use_cuda
+    global train
 
+    # set boolean variable to indicate training (or testing if False)
+    train = True if goal == "trainig" else False
+
+    # gpu stuff
     if mode == 'gpu':
         use_cuda = torch.cuda.is_available()
 
@@ -35,10 +40,8 @@ def init(*, mode: str='cpu'):
     # if gpu is to be used ----------------------------------------------------
     if use_cuda:
         print(": CUDA is available.")
-    FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
-    # LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
-    # ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
-    Tensor = FloatTensor
+    Tensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+    # Tensor = FloatTensor
     dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 
 
@@ -100,13 +103,15 @@ class Policy(nn.Module):
 # defining necessary functions - move to a class maybe? /shrug
 def select_action(*, model, agent, state) -> float:
     """Select an action based on the weighted possibilities given as the output from the model."""
+    # if train:
     agent.memory.States.append(state)  # save the state
     state = torch.from_numpy(state).float().type(dtype)  # float creates a float tensor
     probs, state_value = model(Variable(state))  # propagate the state as Variable
     cat_dist = Categorical(probs)  # categorical distribution
     action = cat_dist.sample()  # I think I should e-greedy right at this point
-    agent.memory.Actions.append(SavedAction(cat_dist.log_prob(action),
-                                            state_value))
+    if train:
+        agent.memory.Actions.append(SavedAction(cat_dist.log_prob(action),
+                                                state_value))
     return action.data[0]  # just output a number and not additionally the type
 
 
@@ -171,10 +176,6 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
         ret_avg = np.mean(returns_to_average)
         returns_to_average.clear()
         return loss, ret_avg
-
-    # clear memory from unneeded variables
-    # del model.rewards[:]
-    # del model.saved_actions[:]
 
 
 # saving function

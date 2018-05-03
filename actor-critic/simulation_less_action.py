@@ -12,7 +12,7 @@ import argparse as ap
 from collections import deque
 
 from agents import Predator, Prey
-from environment_less_action import GridPPM
+import environment_less_action as Environment
 from tools import timestamp, keyboard_interrupt_handler, sum_calls, chunkify
 import actor_critic as ac  # also ensures GPU usage when available
 
@@ -32,11 +32,21 @@ arg_cfg = args.config  # configuration file
 with open(arg_cfg, "r") as ymlfile:
     cfg = yaml.load(ymlfile)
 
+# actor critic init settings --------------------------------------------------
 # if gpu is to be used
 mode = cfg['Network']['mode']
 use_cuda = torch.cuda.is_available() if mode == 'gpu' else False
+
+# if trainig or testing goal
+goal = cfg['Sim']['goal']
+training = True if goal == "training" else False
+
 # make sure, that everything is ported to the gpu if one should be used
-ac.init(mode=mode)
+ac.init(mode=mode, goal=goal)
+
+# Environment init settings ---------------------------------------------------
+# simulation goal
+Environment.init(goal=goal)
 
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
 
@@ -61,7 +71,7 @@ elif cfg_res:
     resume = torch.load(cfg_res)
 
 # Initialize Grid -------------------------------------------------------------
-env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
+env = Environment.GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
@@ -100,9 +110,6 @@ if resume is not None:
         if p in resume:
             resume_pars[p] = resume[p]
 
-    # if 'epsbatch' in resume:
-    #     epsbatch = resume['epsbatch']
-
     if 'last_episode' in resume:
         resume_pars['last_episode'] += 1  # if resume, don't rerun the last step
 
@@ -118,7 +125,6 @@ save_state = {'PreyState': PreyModel.state_dict(),
               'PredatorState': PredatorModel.state_dict(),
               'PreyOptimizerState': PreyOptimizer.state_dict(),
               'PredatorOptimizerState': PredatorOptimizer.state_dict(),
-              # 'mean_gens': avg['mean_gens'],
               'mean_prey_rewards': avg['mean_prey_rewards'],
               'mean_pred_rewards': avg['mean_pred_rewards'],
               'mean_prey_loss': avg['mean_prey_loss'],
@@ -182,7 +188,6 @@ def main():
                                                         returnidx=idx,
                                                         action=action)
                 else:
-                    # ag = env._idx_to_ag(idx)  # agent object
                     ag = env.env[idx]
 
                     # select model and action
@@ -251,7 +256,7 @@ def main():
             state = env.state
 
         # if actual timestep limit is reached append agent memory to history
-        if not done:
+        if not done and training:
             for ag in env._agents_set:
                 if ag.memory.Rewards:  # if agent actually has memory
                     getattr(env.history, ag.kin).append(ag.memory)
@@ -260,7 +265,7 @@ def main():
                                                eps_time))
 
         # only do updates if both kins have a history
-        if len(env.history.Predator) and len(env.history.Prey):
+        if len(env.history.Predator) and len(env.history.Prey) and training:
             print("\n: optimizing now...")
             opt_time_start = timestamp(return_obj=True)
             l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
