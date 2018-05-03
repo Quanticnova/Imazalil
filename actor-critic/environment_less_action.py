@@ -257,7 +257,8 @@ class GridPPM(Environment):
                "death_starvation": -3,  # starvation
                "death_prey": -3,  # being eaten
                "indifferent": 0,
-               "default": 1}  # for both prey and predator
+               "default": 1,  # for both prey and predator
+               "instadeath": 0}  # for statistical predator death
 
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
@@ -804,6 +805,7 @@ class GridPPM(Environment):
     def step(self, *, model: Callable, agent: Callable, index: tuple, action: int, returnidx: tuple=None) -> tuple:
         """The method starts from the current state, takes an action and records the return of it."""
         reward = 0  # initialize reward
+        instadeath = False
         # reduce food_reserve
         agent.food_reserve -= 1 if self.agent_kwargs['mortality'] else 0
 
@@ -816,7 +818,16 @@ class GridPPM(Environment):
                 self._die(index=index)
                 reward = self.REWARDS['death_starvation']  # more death!
 
-        if reward == 0:
+        # statistical death
+        if (agent.kin == "Predator") and (len(self._agents_tuple.Predator)
+                                          > 1):
+            death_roll = rd.random()
+            if death_roll <= self.agent_kwargs['instadeath']:
+                self._die(index=index)
+                reward = self.REWARDS['instadeath']  # should be zero
+                instadeath = True
+
+        if (reward == 0) and not instadeath:
             act = self.action_lookup[action]  # select action from lookup
             reward = act(index=index)  # get reward for acting
             # for debugging: checking whether action rewards are valid
