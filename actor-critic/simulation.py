@@ -74,7 +74,7 @@ if use_cuda:
     PredatorModel.cuda()
 
 # averages
-avg = {'mean_gens': deque(),  # in step units
+avg = {  # 'mean_gens': deque(),  # in step units
        'mean_prey_rewards': deque(),  # in episode units
        'mean_pred_rewards': deque(),
        'mean_prey_loss': deque(),  # in episode units
@@ -118,7 +118,7 @@ save_state = {'PreyState': PreyModel.state_dict(),
               'PredatorState': PredatorModel.state_dict(),
               'PreyOptimizerState': PreyOptimizer.state_dict(),
               'PredatorOptimizerState': PredatorOptimizer.state_dict(),
-              'mean_gens': avg['mean_gens'],
+              # 'mean_gens': avg['mean_gens'],
               'mean_prey_rewards': avg['mean_prey_rewards'],
               'mean_pred_rewards': avg['mean_pred_rewards'],
               'mean_prey_loss': avg['mean_prey_loss'],
@@ -201,15 +201,6 @@ def main():
                     break
 
             # data analysis and storage ---------------------------------------
-            # mean value output
-            gens = deque()
-            for a in env._agents_set:
-                gens.append(a.generation)
-
-            avg['mean_gens'].append(np.mean(gens))
-            print("::: Mean generation: {}".format(avg['mean_gens'][-1]))
-            gens.clear()  # free memory
-
             # print food reserve
             mean_prey_fr = np.mean([ag.food_reserve for ag in env._agents_tuple.Prey])
             mean_pred_fr = np.mean([ag.food_reserve for ag in env._agents_tuple.Predator])
@@ -224,21 +215,25 @@ def main():
             for chunk in chunkify(func_list, 9):  # see tools!
                 function_calls.append(sum_calls(chunk))  # see tools too here.
 
-            # movecalls = np.sum([f[1].calls for f in
-            #                   sorted(env.action_lookup.items())[:9]])
-            # eatcalls = np.sum([f[1].calls for f in
-            #                  sorted(env.action_lookup.items())[9:19]])
-            # procreatecalls = np.sum([f[1].calls for f in
-            #                        sorted(env.action_lookup.items())[19:]])
             print("::: Move calls: {}\t Eat calls: {}\t Procreate calls: {}"
                   "".format(*function_calls))
-            batch.append(function_calls)
+
+            gens = deque()
+            for a in env._agents_set:
+                gens.append(a.generation)
+
+            mean_gens = np.mean(gens)
+            gens.clear()  # free memory
+            print("::: Mean generation: {}".format(mean_gens))
+
+            batch.append([function_calls, mean_gens, mean_pred_fr,
+                          mean_prey_fr])
 
             for f in env.action_lookup.values():
                 f.calls = 0  # reset the call counter
 
             # simulation again ------------------------------------------------
-            if done:
+            if done or ((_ + 1) % cfg['Sim']['steps'] == 0):
                 # save the episode number with number of steps
                 # batch.append((i_eps, _))
                 epsbatch.append([(i_eps, _), batch.copy()])
