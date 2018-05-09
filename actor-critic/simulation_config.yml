@@ -40,6 +40,7 @@ Plot:
     dpi:                150
 
 Network:
+    kind:               'fc'  # fully connected without any conv layers
     mode:               'cpu'  # can also be 'gpu'
     layers:             # I still need a convenient way to describe this
       input:            !!python/tuple [50, 40]  # Model -> neighbourhood + 1
