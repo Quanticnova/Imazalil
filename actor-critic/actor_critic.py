@@ -53,27 +53,31 @@ class ConvPolicy(nn.Module):
     """Create an instance of a neural network with convolutional input layer."""
 
     __slots__ = ['conv1', 'hidden1', 'hidden2', 'hidden3', 'action_head',
-                 'value_head']
+                 'value_head', 'affine1']
 
-    def __init__(self, *, conv1: dict, hidden1: tuple, hidden2: tuple,
-                 hidden3: tuple, action_head: tuple, value_head: tuple,
-                 **kwargs):
+    def __init__(self, *, conv1: dict, affine1: tuple, hidden1: tuple,
+                 hidden2: tuple, hidden3: tuple, action_head: tuple,
+                 value_head: tuple, **kwargs):
         """Initialize the neural network and its attributes."""
         super(ConvPolicy, self).__init__()  # call nn.Modules init function
 
         # convolutional tuple should contain {in_channels: 1, out_channels: 6,
         # kernel_size: 3, stride: 1, padding: 1}
-        self.conv1 = nn.Conv2d(**conv1)
+        self.conv1 = nn.Conv2d(**conv1)  # for neighbourhood
+        self.affine1 = nn.Linear(*affine1)  # for food reserve
         self.hidden1 = nn.Linear(*hidden1)
         self.hidden2 = nn.Linear(*hidden2)
         self.hidden3 = nn.Linear(*hidden3)
         self.action_head = nn.Linear(*action_head)
         self.value_head = nn.Linear(*value_head)
 
-    def forward(self, input_image: torch.Tensor) -> tuple:
+    def forward(self, input_data: tuple) -> tuple:
         """Forward the given input image."""
-        process = F.relu(self.conv1(input_image))  # has now conv dims
-        process.view(process.size(0), -1)  # flatten the tensor
+        image, foodreserve = input_data  # we assume this structure
+        process = F.relu(self.conv1(image))  # has now conv dims
+        foodres = F.relu(self.affine1(foodreserve))
+        process = process.view(process.size(0), -1)  # flatten the tensor
+        process = torch.cat([process[0], foodres], -1)  # concatenate layers
         process = F.relu(self.hidden1(process))
         process = F.relu(self.hidden2(process))
         process = F.relu(self.hidden3(process))
@@ -137,10 +141,16 @@ class Policy(nn.Module):
 # defining necessary functions - move to a class maybe? /shrug
 def select_action(*, model, agent, state) -> float:
     """Select an action based on the weighted possibilities given as the output from the model."""
-    # if train:
+    # state should be a list of numpy arrays [np.array(nbh), np.array(fr)]
     agent.memory.States.append(state)  # save the state
-    state = torch.from_numpy(state).float().type(dtype)  # float creates a float tensor
-    probs, state_value = model(Variable(state))  # propagate the state as Variable
+    if len(state) > 1:
+        for i, s in enumerate(state):
+            state[i] = Variable(torch.from_numpy(s).float().type(dtype))
+        probs, state_value = model(state)  # propagate the state
+
+    else:
+        state = torch.from_numpy(state).float().type(dtype)  # float creates a float tensor
+        probs, state_value = model(Variable(state))  # propagate the state as Variable
     cat_dist = Categorical(probs)  # categorical distribution
     action = cat_dist.sample()  # I think I should e-greedy right at this point
     if train:
