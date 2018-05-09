@@ -75,8 +75,9 @@ env = Environment.GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
-PreyModel = ac.Policy(**cfg['Network']['layers'])
-PredatorModel = ac.Policy(**cfg['Network']['layers'])
+Policy = ac.Policy if cfg['Network']['kind'] == 'fc' else ac.ConvPolicy
+PreyModel = Policy(**cfg['Network']['layers'])
+PredatorModel = Policy(**cfg['Network']['layers'])
 
 # use gpu if available --------------------------------------------------------
 if use_cuda:
@@ -231,7 +232,8 @@ def main():
             print("::: Mean generation: {}".format(mean_gens))
 
             batch.append([function_calls, mean_gens, mean_pred_fr,
-                          mean_prey_fr])
+                          mean_prey_fr, len(env._agents_tuple.Predator),
+                          len(env._agents_tuple.Prey)])
 
             # avg['mean_gens'].append(np.mean(gens))
 
