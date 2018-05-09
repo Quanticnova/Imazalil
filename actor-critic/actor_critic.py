@@ -49,6 +49,40 @@ def init(*, mode: str='cpu', goal: str="training"):
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 
+class ConvPolicy(nn.Module):
+    """Create an instance of a neural network with convolutional input layer."""
+
+    __slots__ = ['conv1', 'hidden1', 'hidden2', 'hidden3', 'action_head',
+                 'value_head']
+
+    def __init__(self, *, conv1: dict, hidden1: tuple, hidden2: tuple,
+                 hidden3: tuple, action_head: tuple, value_head: tuple,
+                 **kwargs):
+        """Initialize the neural network and its attributes."""
+        super(ConvPolicy, self).__init__()  # call nn.Modules init function
+
+        # convolutional tuple should contain {in_channels: 1, out_channels: 6,
+        # kernel_size: 3, stride: 1, padding: 1}
+        self.conv1 = nn.Conv2d(**conv1)
+        self.hidden1 = nn.Linear(*hidden1)
+        self.hidden2 = nn.Linear(*hidden2)
+        self.hidden3 = nn.Linear(*hidden3)
+        self.action_head = nn.Linear(*action_head)
+        self.value_head = nn.Linear(*value_head)
+
+    def forward(self, input_image: torch.Tensor) -> tuple:
+        """Forward the given input image."""
+        process = F.relu(self.conv1(input_image))  # has now conv dims
+        process.view(process.size(0), -1)  # flatten the tensor
+        process = F.relu(self.hidden1(process))
+        process = F.relu(self.hidden2(process))
+        process = F.relu(self.hidden3(process))
+        action_scores = self.action_head(process)
+        state_value = self.value_head(process)
+
+        return F.softmax(action_scores, dim=-1), state_value
+
+
 # defining the classes for the pred/prey actor-critics
 class Policy(nn.Module):
     """Create an instance of a neural network policy.
