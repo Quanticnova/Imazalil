@@ -912,3 +912,100 @@ class GridPPM(Environment):
         filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, step)
         fig.savefig(filepath + filename, dpi=dpi, format=fmt)
         plt.close(fig)
+
+
+# -------------------------------------------------------------------------
+class GridPPM_simple(Environment):
+    """Again a docstring.
+
+    The config file for this kind of environment should look a little bit different. The size of the viewing grid should be specified directly.
+    """
+
+    REWARDS = {"wrong_action": -1,
+               "default_prey": 0,
+               "default_predator": 0,
+               "succesful_predator": 15,
+               "offspring": 20,
+               "default": 0,
+               "instadeath": 0}
+
+    KIN_LOOKUP = {"Predator": -1, "Prey": 1}
+
+    __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
+                 'eaten_prey', 'view']
+
+    def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
+                 densities: Union[float, tuple], rewards: dict=None,
+                 view: tuple=(7, 7), **agent_kwargs: Union[int, float, None]):
+        """Initialise the grid."""
+        # call parent init function
+        super().__init__(dim=dim, agent_types=agent_types, densities=densities,
+                         **agent_kwargs)
+
+        # initialize empty environment
+        self._env = np.empty(self.max_pop, dtype=object)
+
+        # initialize other variables
+        self.shuffled_agent_list = None
+        self.state = None
+        self.view = None
+        self.eaten_prey = deque()
+
+        # populate the grid + initial shuffled agent list
+        self._populate()
+        self.create_shuffled_agent_list()
+
+        # view
+        self.view = view
+
+        # update the rewards
+        if rewards is not None:
+            if isinstance(rewards, dict):
+                for k, v in rewards.items():
+                    if k not in self.REWARDS:
+                        warnings.warn("Key {} was not in rewards dictionary."
+                                      " Skipping update for this key..."
+                                      "".format(k), RuntimeWarning)
+                    else:
+                        self.REWARDS[k] = v
+
+            else:
+                raise TypeError("rewards should always be of type dict, but"
+                                " {} was given.".format(type(rewards)))
+
+        # setup of the action ACTION_LOOKUP
+        self.action_lookup = {  # TODO: Do me!
+                              }
+
+    # properties --------------------------------------------------------------
+    # env
+    @property
+    def env(self) -> np.ndarray:
+        """Return the grid as numpy array with uuids."""
+        return self._env
+
+    @env.setter
+    def env(self, env: np.ndarray) -> None:
+        """Set the environment."""
+        if type(self._env) is not type(env):
+            raise TypeError("Type mismatch - env must be of type {} but {} was"
+                            " given.".format(type(self._env), type(env)))
+
+        else:
+            self._env = env
+
+    # agent view
+    @property
+    def view(self) -> tuple:
+        """Return the agents' view of the grid as (X, Y) tuple."""
+        return self.view
+
+    @view.setter
+    def view(self, view: tuple) -> None:
+        """Set the agents' view of the grid."""
+        if not isinstance(view, tuple):
+            raise TypeError("view must be of type tuple but type {} was given"
+                            "".format(type(view)))
+
+        else:
+            self.view = view
