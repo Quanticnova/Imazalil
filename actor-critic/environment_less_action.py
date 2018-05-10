@@ -14,15 +14,18 @@ from tools import type_check, timestamp, function_call_counter
 hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
 
 
-def init(*, goal: str="training"):
+def init(*, goal: str="training", policy_kind: str="conv"):
     """Initialize some global variables to set the environment to act in a specific behaviour.
 
     Current global variables:
         - goal: set the goal of the simulation; either training or testing
+        - conv: define the NN input; True if 'conv', else if 'fc'
     """
     global training
+    global conv
 
     training = True if goal == "training" else False  # quick and dirty
+    conv = True if policy_kind == "conv" else False
 
 
 class Environment:
@@ -549,9 +552,10 @@ class GridPPM(Environment):
         """
         # it can happen, that the index points to an empty space in the environment. This is due to the fact, that an index in the shuffled list doesn't get removed, if a prey got eaten. thus, empty cells are just ignored.
         state = []
-        # check if agent has memory:
         if ag is not None:  # if ag is additionally set, directly get state
-            if ag.memory.States:
+            # this condition is fulfilled, if an agent gets eaten, because then
+            # the agent option is explicitely set
+            if ag.memory.States:  # check if agent has memory
                 state = ag.memory.States[-1]
                 return state
 
@@ -562,6 +566,14 @@ class GridPPM(Environment):
                 return np.array(state)
 
         else:
+
+            active_agent = self.env[index]
+            neighbourhood = self.neighbourhood(index=index)
+            state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
+            state.append(active_agent.food_reserve)
+            return np.array(state)
+
+            """
             active_agent = self.env[index]
             if active_agent.memory.States:
                 state = active_agent.memory.States[-1]  # remember the latest state
@@ -573,6 +585,7 @@ class GridPPM(Environment):
                 state.append(active_agent.food_reserve)
 
                 return np.array(state)
+            """
 
     # neighbourhood
     def neighbourhood(self, index: tuple) -> np.array:
@@ -591,12 +604,17 @@ class GridPPM(Environment):
                 for i in range(self._nbh_lr, self._nbh_ur):
                     new_idx = tuple((idx + np.array([j, i])) % self.dim)
                     nbh.append(self.env[new_idx])  # append grid contents
-            nbh = np.array(nbh).ravel()  # flatten array
+            nbh = np.array(nbh)
 
         else:  # directly return sliced and flattened array
             nbh = self.env[slice(y + self._nbh_lr, y + self._nbh_ur),
-                           slice(x + self._nbh_lr, x + self._nbh_ur)].ravel()
-        return nbh
+                           slice(x + self._nbh_lr, x + self._nbh_ur)]
+
+        if conv:
+            return nbh  # needed for conv input layer
+
+        else:
+            return nbh.ravel()  # flatten array
 
     '''
     # @_index_test_ndarray
@@ -820,10 +838,15 @@ class GridPPM(Environment):
         # reduce food_reserve
         agent.food_reserve -= 1 if self.agent_kwargs['mortality'] else 0
 
+        # check whether this is the final action or not
+        final_action = False if len(self.shuffled_agent_list) != 0 else True
+
+        # if agent got eaten, set the reward
         if hasattr(agent, "got_eaten"):
             if agent.got_eaten:
                 reward = self.REWARDS['death_prey']
 
+        # if mortality is set, then check if agent starved
         if self.agent_kwargs['mortality']:
             if (agent.food_reserve <= 0) and (reward == 0):  # if agent not dead already
                 self._die(index=index)
@@ -851,6 +874,7 @@ class GridPPM(Environment):
         if training:
             agent.memory.Rewards.append(reward)
 
+        # check if one species died out and if so, save history of living agents
         if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
 
@@ -868,7 +892,7 @@ class GridPPM(Environment):
             self.state = self.index_to_state(index=returnidx)
             return reward, self.state, done, returnidx
 
-        else:
+        elif not final_action:
             # new index, if cell is empty due to eaten prey, repop
             newindex = self.shuffled_agent_list.pop()
             while((self.env[newindex] == "")):
@@ -880,6 +904,11 @@ class GridPPM(Environment):
             if self.env[newindex] is not None:
                 self.state = self.index_to_state(index=newindex)  # new state
             return reward, self.state, done, newindex
+
+        else:
+            # since the last action already happened, we can just return some
+            # data mambo jumbo since step always returns 4 values
+            return 0, 0, done, 0
 
     def render(self, *, episode: int, step: int, figsize: tuple, filepath: str,
                dpi: int, fmt: str, **kwargs):
@@ -932,7 +961,7 @@ class GridPPM_simple(Environment):
     KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
     __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
-                 'eaten_prey', 'view']
+                 'eaten_prey']
 
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple], rewards: dict=None,
