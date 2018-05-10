@@ -42,11 +42,11 @@ goal = cfg['Sim']['goal']
 training = True if goal == "training" else False
 
 # make sure, that everything is ported to the gpu if one should be used
-ac.init(mode=mode, goal=goal)
+ac.init(mode=mode, goal=goal, policy_kind=cfg['Network']['kind'])
 
 # Environment init settings ---------------------------------------------------
 # simulation goal
-Environment.init(goal=goal)
+Environment.init(goal=goal, policy_kind=cfg['Network']['kind'])
 
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
 
@@ -170,8 +170,13 @@ def main():
                     print("::: Plotting current state...")
                     env.render(episode=i_eps, step=_, **cfg['Plot'])
 
-            while(env.shuffled_agent_list):  # as long as there are agents
+            # as long as there are agents
+            active_agents = len(env.shuffled_agent_list) + 1
+            while(active_agents):
                 # if any prey got eaten last round, use it
+                # print(": eaten prey: {}".format(len(env.eaten_prey)))
+                active_agents -= 1
+                final_action = False if active_agents != 0 else True
                 if len(env.eaten_prey) != 0:
                     tmpidx, ag = env.eaten_prey.pop()
                     state = env.index_to_state(index=tmpidx, ag=ag)
@@ -179,7 +184,7 @@ def main():
                     if state[-1] is None:
                         state[-1] = int(ag.food_reserve)
 
-                    env.state = state
+                    # env.state = state
                     model = PreyModel
                     action = ac.select_action(model=model, agent=ag,
                                               state=state)
@@ -190,7 +195,7 @@ def main():
                                                         action=action)
                 else:
                     ag = env.env[idx]
-
+                    # ag.memory.States.append(state)
                     # select model and action
                     model = PreyModel if ag.kin == "Prey" else PredatorModel
                     action = ac.select_action(model=model, agent=ag,
