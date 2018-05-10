@@ -14,16 +14,20 @@ from torch.distributions import Categorical
 
 
 # set mode for the actor_critic
-def init(*, mode: str='cpu', goal: str="training"):
+def init(*, mode: str='cpu', goal: str="training", policy_kind: str="fc"):
     """Set the mode of the actor critic model to either 'cpu' or 'gpu'."""
     global FloatTensor
     global Tensor
     global dtype
     global use_cuda
     global train
+    global conv
+
+    # set boolean variable to tell select_action how to process states
+    conv = True if policy_kind == "conv" else False
 
     # set boolean variable to indicate training (or testing if False)
-    train = True if goal == "trainig" else False
+    train = True if goal == "training" else False
 
     # gpu stuff
     if mode == 'gpu':
@@ -143,7 +147,7 @@ def select_action(*, model, agent, state) -> float:
     """Select an action based on the weighted possibilities given as the output from the model."""
     # state should be a list of numpy arrays [np.array(nbh), np.array(fr)]
     agent.memory.States.append(state)  # save the state
-    if len(state) > 1:
+    if conv:
         for i, s in enumerate(state):
             state[i] = Variable(torch.from_numpy(s).float().type(dtype))
         probs, state_value = model(state)  # propagate the state
