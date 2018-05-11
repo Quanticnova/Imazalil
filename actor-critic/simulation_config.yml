@@ -10,6 +10,7 @@ Model:
     p_flee:               0.4
     p_eat:                0.6  # = 1-p_flee
     mortality:            False  # if False, agents are immortal, can't starve
+    instadeath:           0.005  # for predators; if there is more than 1 predator, each predator can die with that probability
     rewards:
       wrong_action:       -1
       default_prey:       1
@@ -20,7 +21,9 @@ Model:
       death_starvation:   -5
       death_prey:         -5
       default:            1
+      instadeath:         0
 Sim:
+    goal:               "training"  # or "testing"; trainig is regular usage, testing is without using memory/history and without optimization
     steps:              1000 # training with more than 1000 timesteps reeeeeeeally slows down the optimization
     episodes:           10000
     save_state_to:      "plots/newtest/"  # store simulation
@@ -37,6 +40,7 @@ Plot:
     dpi:                150
 
 Network:
+    kind:               'fc'  # fully connected without any conv layers
     mode:               'cpu'  # can also be 'gpu'
     layers:             # I still need a convenient way to describe this
       input:            !!python/tuple [50, 40]  # Model -> neighbourhood + 1

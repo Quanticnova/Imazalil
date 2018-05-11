@@ -14,13 +14,22 @@ from torch.distributions import Categorical
 
 
 # set mode for the actor_critic
-def init(*, mode: str='cpu'):
+def init(*, mode: str='cpu', goal: str="training", policy_kind: str="fc"):
     """Set the mode of the actor critic model to either 'cpu' or 'gpu'."""
     global FloatTensor
     global Tensor
     global dtype
     global use_cuda
+    global train
+    global conv
 
+    # set boolean variable to tell select_action how to process states
+    conv = True if policy_kind == "conv" else False
+
+    # set boolean variable to indicate training (or testing if False)
+    train = True if goal == "training" else False
+
+    # gpu stuff
     if mode == 'gpu':
         use_cuda = torch.cuda.is_available()
 
@@ -35,15 +44,51 @@ def init(*, mode: str='cpu'):
     # if gpu is to be used ----------------------------------------------------
     if use_cuda:
         print(": CUDA is available.")
-    FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
-    # LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
-    # ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
-    Tensor = FloatTensor
+    Tensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+    # Tensor = FloatTensor
     dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 
 
 # instance of namedtuple to be used in policy
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+
+
+class ConvPolicy(nn.Module):
+    """Create an instance of a neural network with convolutional input layer."""
+
+    __slots__ = ['conv1', 'hidden1', 'hidden2', 'hidden3', 'action_head',
+                 'value_head', 'affine1']
+
+    def __init__(self, *, conv1: dict, affine1: tuple, hidden1: tuple,
+                 hidden2: tuple, hidden3: tuple, action_head: tuple,
+                 value_head: tuple, **kwargs):
+        """Initialize the neural network and its attributes."""
+        super(ConvPolicy, self).__init__()  # call nn.Modules init function
+
+        # convolutional tuple should contain {in_channels: 1, out_channels: 6,
+        # kernel_size: 3, stride: 1, padding: 1}
+        self.conv1 = nn.Conv2d(**conv1)  # for neighbourhood
+        self.affine1 = nn.Linear(*affine1)  # for food reserve
+        self.hidden1 = nn.Linear(*hidden1)
+        self.hidden2 = nn.Linear(*hidden2)
+        self.hidden3 = nn.Linear(*hidden3)
+        self.action_head = nn.Linear(*action_head)
+        self.value_head = nn.Linear(*value_head)
+
+    def forward(self, input_data: tuple) -> tuple:
+        """Forward the given input image."""
+        image, foodreserve = input_data  # we assume this structure
+        process = F.relu(self.conv1(image))  # has now conv dims
+        foodres = F.relu(self.affine1(foodreserve))
+        process = process.view(process.size(0), -1)  # flatten the tensor
+        process = torch.cat([process[0], foodres], -1)  # concatenate layers
+        process = F.relu(self.hidden1(process))
+        process = F.relu(self.hidden2(process))
+        process = F.relu(self.hidden3(process))
+        action_scores = self.action_head(process)
+        state_value = self.value_head(process)
+
+        return F.softmax(action_scores, dim=-1), state_value
 
 
 # defining the classes for the pred/prey actor-critics
@@ -100,14 +145,27 @@ class Policy(nn.Module):
 # defining necessary functions - move to a class maybe? /shrug
 def select_action(*, model, agent, state) -> float:
     """Select an action based on the weighted possibilities given as the output from the model."""
+    # state should be a list of numpy arrays [np.array(nbh), np.array(fr)]
     agent.memory.States.append(state)  # save the state
-    state = torch.from_numpy(state).float().type(dtype)  # float creates a float tensor
-    probs, state_value = model(Variable(state))  # propagate the state as Variable
+    if conv:
+        if not any([isinstance(el, Variable) for el in state]):
+            for i, s in enumerate(state):
+                if len(state[i]) > 1:
+                    # image is just 2D but conv needs 4D tensor
+                    # first two elements are just batchsize and numbers of channels
+                    s = s.reshape(1, 1, *s.shape)
+                state[i] = Variable(torch.from_numpy(s).float().type(dtype))
+        probs, state_value = model(state)  # propagate the state
+
+    else:
+        state = torch.from_numpy(state).float().type(dtype)  # float creates a float tensor
+        probs, state_value = model(Variable(state))  # propagate the state as Variable
     cat_dist = Categorical(probs)  # categorical distribution
     action = cat_dist.sample()  # I think I should e-greedy right at this point
-    agent.memory.Actions.append(SavedAction(cat_dist.log_prob(action),
-                                            state_value))
-    return action.data[0]  # just output a number and not additionally the type
+    if train:
+        agent.memory.Actions.append(SavedAction(cat_dist.log_prob(action),
+                                                state_value))
+    return action.item()  # just output a number and not additionally the type
 
 
 # defining what to do after the episode finished.
@@ -171,10 +229,6 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
         ret_avg = np.mean(returns_to_average)
         returns_to_average.clear()
         return loss, ret_avg
-
-    # clear memory from unneeded variables
-    # del model.rewards[:]
-    # del model.saved_actions[:]
 
 
 # saving function
