@@ -148,8 +148,13 @@ def select_action(*, model, agent, state) -> float:
     # state should be a list of numpy arrays [np.array(nbh), np.array(fr)]
     agent.memory.States.append(state)  # save the state
     if conv:
-        for i, s in enumerate(state):
-            state[i] = Variable(torch.from_numpy(s).float().type(dtype))
+        if not any([isinstance(el, Variable) for el in state]):
+            for i, s in enumerate(state):
+                if len(state[i]) > 1:
+                    # image is just 2D but conv needs 4D tensor
+                    # first two elements are just batchsize and numbers of channels
+                    s = s.reshape(1, 1, *s.shape)
+                state[i] = Variable(torch.from_numpy(s).float().type(dtype))
         probs, state_value = model(state)  # propagate the state
 
     else:

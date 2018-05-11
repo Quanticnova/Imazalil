@@ -561,17 +561,40 @@ class GridPPM(Environment):
 
             else:
                 neighbourhood = self.neighbourhood(index=index)
+                if conv:
+                    shape = neighbourhood.shape
+                    neighbourhood = neighbourhood.ravel()
+
                 state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
-                state.append(ag.food_reserve)  # got handed an agent
-                return np.array(state)
+
+                if conv:
+                    state = np.array(state).reshape(shape)
+                    state = [state, np.array([ag.food_reserve])]  # got handed an agent
+                    return state
+                else:
+                    state.append(ag.food_reserve)
+                    return np.array(state)
 
         else:
-
             active_agent = self.env[index]
             neighbourhood = self.neighbourhood(index=index)
+            if conv:
+                shape = neighbourhood.shape
+                neighbourhood = neighbourhood.ravel()
+
             state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
-            state.append(active_agent.food_reserve)
-            return np.array(state)
+
+            if conv:
+                state = np.array(state).reshape(shape)
+                state = [state, np.array([active_agent.food_reserve])]  # got handed an agent
+                return state
+            else:
+                state.append(active_agent.food_reserve)
+                return np.array(state)
+
+            # state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
+            # state.append(active_agent.food_reserve)
+            # return np.array(state)
 
             """
             active_agent = self.env[index]
@@ -611,7 +634,7 @@ class GridPPM(Environment):
                            slice(x + self._nbh_lr, x + self._nbh_ur)]
 
         if conv:
-            return nbh  # needed for conv input layer
+            return nbh.reshape(self._nbh_range, self._nbh_range)  # needed for conv input layer
 
         else:
             return nbh.ravel()  # flatten array

@@ -284,7 +284,7 @@ class Predator(Agent):
     # magic method ------------------------------------------------------------
     def __str__(self) -> str:
         """Return the agents properties."""
-        props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
+        props = ("Kin: {}\tgen: {}\tfood_res: {}\t"
                  "max_food_res: {}\t p_eat: {}".format(self.kin,  # self.uuid,
                                                        self.generation,
                                                        self.food_reserve,
@@ -350,7 +350,7 @@ class Prey(Agent):
     # magic method ------------------------------------------------------------
     def __str__(self) -> str:
         """Return the agents properties."""
-        props = ("{}\tID: {}\tgen: {}\tfood_res: {}\t"
+        props = ("Kin: {}\tgen: {}\tfood_res: {}\t"
                  "max_food_res: {}\t p_flee: {}\t"
                  " got_eaten: {}".format(self.kin,  # self.uuid,
                                          self.generation,
