@@ -12,7 +12,7 @@ import argparse as ap
 from collections import deque
 
 from agents import Predator, Prey
-from environment import GridPPM
+import environment as Environment
 from tools import timestamp, keyboard_interrupt_handler, sum_calls, chunkify
 import actor_critic as ac  # also ensures GPU usage when available
 
@@ -32,11 +32,21 @@ arg_cfg = args.config  # configuration file
 with open(arg_cfg, "r") as ymlfile:
     cfg = yaml.load(ymlfile)
 
+# actor critic init settings --------------------------------------------------
 # if gpu is to be used
 mode = cfg['Network']['mode']
 use_cuda = torch.cuda.is_available() if mode == 'gpu' else False
+
+# if trainig or testing goal
+goal = cfg['Sim']['goal']
+training = True if goal == "training" else False
+
 # make sure, that everything is ported to the gpu if one should be used
-ac.init(mode=mode)
+ac.init(mode=mode, goal=goal, policy_kind=cfg['Network']['kind'])
+
+# Environment init settings ---------------------------------------------------
+# simulation goal
+Environment.init(goal=goal, policy_kind=cfg['Network']['kind'])
 
 cfg_res = cfg['Sim']['resume_state_from']  # resume filepath
 
@@ -61,12 +71,13 @@ elif cfg_res:
     resume = torch.load(cfg_res)
 
 # Initialize Grid -------------------------------------------------------------
-env = GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
+env = Environment.GridPPM(agent_types=(Predator, Prey), **cfg['Model'])
 # env.seed(12345678)
 
 # Initialize the policies and averages ----------------------------------------
-PreyModel = ac.Policy(**cfg['Network']['layers'])
-PredatorModel = ac.Policy(**cfg['Network']['layers'])
+Policy = ac.Policy if cfg['Network']['kind'] == 'fc' else ac.ConvPolicy
+PreyModel = Policy(**cfg['Network']['layers'])
+PredatorModel = Policy(**cfg['Network']['layers'])
 
 # use gpu if available --------------------------------------------------------
 if use_cuda:
@@ -100,9 +111,6 @@ if resume is not None:
         if p in resume:
             resume_pars[p] = resume[p]
 
-    # if 'epsbatch' in resume:
-    #     epsbatch = resume['epsbatch']
-
     if 'last_episode' in resume:
         resume_pars['last_episode'] += 1  # if resume, don't rerun the last step
 
@@ -118,7 +126,6 @@ save_state = {'PreyState': PreyModel.state_dict(),
               'PredatorState': PredatorModel.state_dict(),
               'PreyOptimizerState': PreyOptimizer.state_dict(),
               'PredatorOptimizerState': PredatorOptimizer.state_dict(),
-              # 'mean_gens': avg['mean_gens'],
               'mean_prey_rewards': avg['mean_prey_rewards'],
               'mean_pred_rewards': avg['mean_pred_rewards'],
               'mean_prey_loss': avg['mean_prey_loss'],
@@ -163,8 +170,13 @@ def main():
                     print("::: Plotting current state...")
                     env.render(episode=i_eps, step=_, **cfg['Plot'])
 
-            while(env.shuffled_agent_list):  # as long as there are agents
+            # as long as there are agents
+            active_agents = len(env.shuffled_agent_list) + 1
+            while(active_agents):
                 # if any prey got eaten last round, use it
+                # print(": eaten prey: {}".format(len(env.eaten_prey)))
+                active_agents -= 1
+                final_action = False if active_agents != 0 else True
                 if len(env.eaten_prey) != 0:
                     tmpidx, ag = env.eaten_prey.pop()
                     state = env.index_to_state(index=tmpidx, ag=ag)
@@ -172,7 +184,7 @@ def main():
                     if state[-1] is None:
                         state[-1] = int(ag.food_reserve)
 
-                    env.state = state
+                    # env.state = state
                     model = PreyModel
                     action = ac.select_action(model=model, agent=ag,
                                               state=state)
@@ -182,9 +194,8 @@ def main():
                                                         returnidx=idx,
                                                         action=action)
                 else:
-                    # ag = env._idx_to_ag(idx)  # agent object
                     ag = env.env[idx]
-
+                    # ag.memory.States.append(state)
                     # select model and action
                     model = PreyModel if ag.kin == "Prey" else PredatorModel
                     action = ac.select_action(model=model, agent=ag,
@@ -212,7 +223,7 @@ def main():
             # function calls
             function_calls = []
             func_list = [f for a, f in sorted(env.action_lookup.items())]
-            for chunk in chunkify(func_list, 9):  # see tools!
+            for chunk in chunkify(func_list, 5):  # see tools!
                 function_calls.append(sum_calls(chunk))  # see tools too here.
 
             print("::: Move calls: {}\t Eat calls: {}\t Procreate calls: {}"
@@ -221,13 +232,15 @@ def main():
             gens = deque()
             for a in env._agents_set:
                 gens.append(a.generation)
-
             mean_gens = np.mean(gens)
             gens.clear()  # free memory
             print("::: Mean generation: {}".format(mean_gens))
 
             batch.append([function_calls, mean_gens, mean_pred_fr,
-                          mean_prey_fr])
+                          mean_prey_fr, len(env._agents_tuple.Predator),
+                          len(env._agents_tuple.Prey)])
+
+            # avg['mean_gens'].append(np.mean(gens))
 
             for f in env.action_lookup.values():
                 f.calls = 0  # reset the call counter
@@ -250,7 +263,7 @@ def main():
             state = env.state
 
         # if actual timestep limit is reached append agent memory to history
-        if not done:
+        if not done and training:
             for ag in env._agents_set:
                 if ag.memory.Rewards:  # if agent actually has memory
                     getattr(env.history, ag.kin).append(ag.memory)
@@ -259,7 +272,7 @@ def main():
                                                eps_time))
 
         # only do updates if both kins have a history
-        if len(env.history.Predator) and len(env.history.Prey):
+        if len(env.history.Predator) and len(env.history.Prey) and training:
             print("\n: optimizing now...")
             opt_time_start = timestamp(return_obj=True)
             l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
