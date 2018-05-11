@@ -165,7 +165,7 @@ def select_action(*, model, agent, state) -> float:
     if train:
         agent.memory.Actions.append(SavedAction(cat_dist.log_prob(action),
                                                 state_value))
-    return action.data[0]  # just output a number and not additionally the type
+    return action.item()  # just output a number and not additionally the type
 
 
 # defining what to do after the episode finished.
