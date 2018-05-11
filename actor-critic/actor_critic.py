@@ -173,7 +173,8 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
                    return_means: bool=False) -> Optional[tuple]:
     """Calculate the losses and backprop them through the models NN."""
     # initialize a few variables
-    eps = np.finfo(np.float32).eps  # machine epsilon
+    # eps needs to be tensor now{}
+    eps = Tensor([np.finfo(np.float32).eps])  # machine epsilon
     losses = deque()
     returns_to_average = deque()
     for (_, agent_rewards, saved_actions) in history:
@@ -212,10 +213,10 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
         optimizer.zero_grad()
 
         # calculate the loss
-        losses.append(torch.stack(policy_losses).sum() + torch.stack(state_value_losses).sum())
+        losses.append(torch.stack(list(policy_losses)).sum() + torch.stack(list(state_value_losses)).sum())
 
     # average all losses
-    loss = torch.stack(losses).mean()
+    loss = torch.stack(list(losses)).mean()
 
     # backpropagate the loss
     loss.backward()

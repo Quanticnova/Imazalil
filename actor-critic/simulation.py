@@ -280,8 +280,8 @@ def main():
                                       gamma=cfg['Network']['gamma'],
                                       return_means=True)
             print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
-                  "".format(l.data[0], mr))
-            avg['mean_prey_loss'].append(l.data[0])
+                  "".format(l.item(), mr))
+            avg['mean_prey_loss'].append(l.item())
             avg['mean_prey_rewards'].append(mr)
 
             l, mr = ac.finish_episode(model=PredatorModel,
@@ -290,8 +290,8 @@ def main():
                                       gamma=cfg['Network']['gamma'],
                                       return_means=True)
             print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
-                  "".format(l.data[0], mr))
-            avg['mean_pred_loss'].append(l.data[0])
+                  "".format(l.item(), mr))
+            avg['mean_pred_loss'].append(l.item())
             avg['mean_pred_rewards'].append(mr)
 
             print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
