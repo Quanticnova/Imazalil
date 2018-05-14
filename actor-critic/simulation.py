@@ -181,6 +181,10 @@ def main():
                     tmpidx, ag = env.eaten_prey.pop()
                     state = env.index_to_state(index=tmpidx, ag=ag)
 
+                    # remove the index from shuffled agent list
+                    if tmpidx in env.shuffled_agent_list:
+                        env.shuffled_agent_list.remove(tmpidx)
+
                     if state[-1] is None:
                         state[-1] = int(ag.food_reserve)
 
