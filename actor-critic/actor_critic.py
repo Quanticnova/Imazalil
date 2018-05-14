@@ -203,7 +203,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
 
         # now interate over all probability-state value-reward pairs
         for (log_prob, state_value), r in zip(saved_actions, rewards):
-            reward = r - state_value.data[0]  # get the value, needs `Variable`
+            reward = r - state_value.item()  # get the value, needs `Variable`
             policy_losses.append(-log_prob * reward)
             # calculate the (smooth) L^1 loss = least absolute deviation
             state_value_losses.append(F.smooth_l1_loss(state_value,
