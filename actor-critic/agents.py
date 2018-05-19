@@ -2,7 +2,7 @@
 
 # import uuid
 from collections import namedtuple, deque
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Union
 
 memory = namedtuple('Memory', ('States', 'Rewards', 'Actions'))
 
@@ -38,7 +38,7 @@ class Agent:
                  '_p_breed', '_kin', '_kwargs', '_memory']
 
     # Init --------------------------------------------------------------------
-    def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
+    def __init__(self, *, food_reserve: Union[int, float], max_food_reserve: int=None,
                  generation: int=None, p_breed: float=1.0, kin: str=None,
                  mem: tuple=None, **kwargs):
         """Initialise the agent instance."""
@@ -91,9 +91,9 @@ class Agent:
         return self._food_reserve
 
     @food_reserve.setter
-    def food_reserve(self, food_reserve: int) -> None:
+    def food_reserve(self, food_reserve: Union[int, float]) -> None:
         """The food reserve setter."""
-        if not isinstance(food_reserve, int):
+        if not isinstance(food_reserve, (int, float)):
             raise TypeError("food_reserve can only be of type integer, but"
                             " type {} was given".format(type(food_reserve)))
 
@@ -113,14 +113,14 @@ class Agent:
 
     # max_food_reserve
     @property
-    def max_food_reserve(self) -> int:
+    def max_food_reserve(self) -> Union[int, float]:
         """The maximal food reserve of the agent."""
         return self._max_food_reserve
 
     @max_food_reserve.setter
-    def max_food_reserve(self, max_food_reserve: int) -> None:
+    def max_food_reserve(self, max_food_reserve: Union[int, float]) -> None:
         """The maximal food reserve setter."""
-        if not isinstance(max_food_reserve, int):
+        if not isinstance(max_food_reserve, (int, float)):
             raise TypeError("max_food_reserve can only be of type integer, "
                             "but type {} was given"
                             "".format(type(max_food_reserve)))
