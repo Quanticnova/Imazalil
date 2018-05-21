@@ -988,7 +988,7 @@ class GridOrientedPPM(Environment):
                   "OrientedPrey": 1}
 
     __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
-                 'eaten_prey']
+                 'eaten_prey', '_view']
 
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple], rewards: dict=None,
@@ -1004,7 +1004,7 @@ class GridOrientedPPM(Environment):
         # initialize other variables
         self.shuffled_agent_list = None
         self.state = None
-        self.view = None
+        self._view = None
         self.eaten_prey = deque()
 
         # populate the grid + initial shuffled agent list
@@ -1054,7 +1054,7 @@ class GridOrientedPPM(Environment):
     @property
     def view(self) -> tuple:
         """Return the agents' view of the grid as (X, Y) tuple."""
-        return self.view
+        return self._view
 
     @view.setter
     def view(self, view: tuple) -> None:
@@ -1064,7 +1064,7 @@ class GridOrientedPPM(Environment):
                             "".format(type(view)))
 
         else:
-            self.view = view
+            self._view = view
 
     # methods -----------------------------------------------------------------
     # populate
@@ -1214,6 +1214,10 @@ class GridOrientedPPM(Environment):
         Edge cases need to be handled separately.
         """
         idc = np.array(index)  # for computation
+
+        # TODO: the block below is static and doesn't change - think of a nice
+        # way to store that somewhere in a variable or so, so you don't need to
+        # calculate them every time
 
         # the next block should be moved somewhere to store it permanently
         view = np.array(self.view)
