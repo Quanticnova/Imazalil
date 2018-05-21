@@ -412,7 +412,7 @@ class OrientedPredator(Predator):
     """
 
     # class constants
-    HEIRSHIP = Predator.HEIRSHIP + ['orient']
+    HEIRSHIP = Predator.HEIRSHIP
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_orient']
@@ -485,7 +485,7 @@ class OrientedPrey(Prey):
     """
 
     # class constants
-    HEIRSHIP = Prey.HEIRSHIP + ['orient']
+    HEIRSHIP = Prey.HEIRSHIP
 
     # slots -------------------------------------------------------------------
     __slots__ = ['_orient']
