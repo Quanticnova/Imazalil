@@ -1,6 +1,7 @@
 """This class provides the necessary classes for agents (general), predators and prey."""
 
-# import uuid
+import numpy as np
+import random as rd
 from collections import namedtuple, deque
 from typing import Callable, NamedTuple, Union
 
@@ -264,9 +265,9 @@ class Predator(Agent):
     __slots__ = ['_p_eat']
 
     # init --------------------------------------------------------------------
-    def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1.0, p_eat: float=1.0,
-                 **kwargs):
+    def __init__(self, *, food_reserve: Union[int, float], p_eat: float=1.0,
+                 max_food_reserve: Union[int, float]=None, p_breed: float=1.0,
+                 generation: int=None, **kwargs):
         """Initialise a Predator instance."""
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
@@ -329,9 +330,9 @@ class Prey(Agent):
     __slots__ = ['_p_flee', '_got_eaten']
 
     # init --------------------------------------------------------------------
-    def __init__(self, *, food_reserve: int, max_food_reserve: int=None,
-                 generation: int=None, p_breed: float=1.0, p_flee: float=0.0,
-                 **kwargs):
+    def __init__(self, *, food_reserve: Union[int, float], p_breed: float=1.0,
+                 max_food_reserve: Union[int, float]=None, p_flee: float=0.0,
+                 generation: int=None, **kwargs):
         """Initialise a Prey instance."""
         super().__init__(food_reserve=food_reserve,
                          max_food_reserve=max_food_reserve,
@@ -394,3 +395,150 @@ class Prey(Agent):
 
         else:
             self._got_eaten = got_eaten
+
+
+# -----------------------------------------------------------------------------
+class OrientedPredator(Predator):
+    """Predator class derived from Predator class.
+
+    This class holds an additional feature of having a directed action. In
+    other words, an Agent of this class can only act in the direction it is
+    looking.
+
+    Additional properties:
+        - orient, a 2-tuple of the (X,Y) coordinates of the agents orientation
+            note, that when using plt.quiver one has to provide x,y coordinates
+            whereas np.where returns y,x values.
+    """
+
+    # class constants
+    HEIRSHIP = Predator.HEIRSHIP + ['orient']
+
+    # slots -------------------------------------------------------------------
+    __slots__ = ['_orient']
+
+    # init --------------------------------------------------------------------
+    def __init__(self, *, food_reserve: Union[int, float], p_breed: float=1.0,
+                 max_food_reserve: Union[int, float]=None, p_eat: float=1.0,
+                 generation: int=None, orient: tuple=None, **kwargs):
+        """Initialze a OrientedPredator instance."""
+        super(Predator, self).__init__(food_reserve=food_reserve,
+                                       max_food_reserve=max_food_reserve,
+                                       generation=generation,
+                                       p_breed=p_breed,
+                                       p_eat=p_eat,
+                                       kin=self.__class__.__name__,
+                                       **kwargs)
+
+        # initialize new attributes
+        self._orient = (0, 0)
+
+        # set new (property managed) attributes
+        self.orient = orient
+
+    # magic method ------------------------------------------------------------
+    # tbd
+
+    # properties --------------------------------------------------------------
+    @property
+    def orient(self) -> tuple:
+        """The agents' orientation as (Y,X) tuple."""
+        return self._orient
+
+    @orient.setter
+    def orient(self, orient: tuple) -> None:
+        """Set the agents orientation."""
+        if orient is None:
+            self._generate_orient()
+
+        elif not isinstance(orient, tuple) or len(orient) > 2:
+            raise TypeError("Orientation must be of 2-tuple but {} of length"
+                            "{} was given.".format(type(orient), len(orient)))
+
+        elif self.orient != (0, 0):  # orient already set
+            raise RuntimeError("Orientation of agent already set!")
+
+        else:
+            self._orient = orient
+
+    # methods -----------------------------------------------------------------
+    def _generate_orient(self) -> None:
+        """Generate a random orientation for an agent."""
+        y = rd.choice([-1, 0, 1])  # first variable
+        x = rd.choice([-1, 1]) if y == 0 else 0  # set x depending on y
+        orient = [y, x]
+        np.random.shuffle(orient)  # shuffle the resulting 2-vector to remove any bias
+        self.orient = tuple(orient)
+
+
+class OrientedPrey(Prey):
+    """Prey class derived from Prey class.
+
+    This class holds an additional feature of having a directed action. In
+    other words, an Agent of this class can only act in the direction it is
+    looking.
+
+    Additional properties:
+        - orient, a 2-tuple of the (X,Y) coordinates of the agents orientation
+            note, that when using plt.quiver one has to provide x,y coordinates
+            whereas np.where returns y,x values.
+    """
+
+    # class constants
+    HEIRSHIP = Prey.HEIRSHIP + ['orient']
+
+    # slots -------------------------------------------------------------------
+    __slots__ = ['_orient']
+
+    # init --------------------------------------------------------------------
+    def __init__(self, *, food_reserve: Union[int, float], p_breed: float=1.0,
+                 max_food_reserve: Union[int, float]=None, p_flee: float=0.0,
+                 generation: int=None, orient: tuple=None, **kwargs):
+        """Initialze a OrientedPredator instance."""
+        super(Prey, self).__init__(food_reserve=food_reserve,
+                                   max_food_reserve=max_food_reserve,
+                                   generation=generation,
+                                   p_breed=p_breed,
+                                   p_flee=p_flee,
+                                   kin=self.__class__.__name__,
+                                   **kwargs)
+
+        # initialize new attributes
+        self._orient = (0, 0)
+
+        # set new (property managed) attributes
+        self.orient = orient
+
+    # magic method ------------------------------------------------------------
+    # tbd
+
+    # properties --------------------------------------------------------------
+    @property
+    def orient(self) -> tuple:
+        """The agents' orientation as (Y,X) tuple."""
+        return self._orient
+
+    @orient.setter
+    def orient(self, orient: tuple) -> None:
+        """Set the agents orientation."""
+        if orient is None:
+            self._generate_orient()
+
+        elif not isinstance(orient, tuple) or len(orient) > 2:
+            raise TypeError("Orientation must be of 2-tuple but {} of length"
+                            "{} was given.".format(type(orient), len(orient)))
+
+        elif self.orient != (0, 0):  # orient already set
+            raise RuntimeError("Orientation of agent already set!")
+
+        else:
+            self._orient = orient
+
+    # methods -----------------------------------------------------------------
+    def _generate_orient(self) -> None:
+        """Generate a random orientation for an agent."""
+        y = rd.choice([-1, 0, 1])  # first variable
+        x = rd.choice([-1, 1]) if y == 0 else 0  # set x depending on y
+        orient = [y, x]
+        np.random.shuffle(orient)  # shuffle the resulting 2-vector to remove any bias
+        self.orient = tuple(orient)
