@@ -444,7 +444,7 @@ class GridPPM(Environment):
         # num_agents. The second for loop manages the right intervals of the
         # shuffled indices.
         for i, (num, at) in enumerate(zip(num_agents, self.agent_types)):
-            for _ in idx[sum(num_agents[:i]) : sum(num_agents[:i+1])]:
+            for _ in idx[sum(num_agents[:i]): sum(num_agents[:i+1])]:
                 name = at.__name__
                 a = at(**self.agent_kwargs)  # create new agent isinstance
                 self.env[_] = a  # add the agent to the environment
@@ -522,7 +522,7 @@ class GridPPM(Environment):
     # create shuffled list of agents
     def create_shuffled_agent_list(self) -> list:
         """Return a shuffled deque of (y,x) index arrays where the agents (at deque creation time) are."""
-        # numpy is stupid and doesn't allow pep8 syntax like "env is not None"
+        # Pylama is stupid and doesn't allow pep8 syntax like "env is not None"
         y, x = np.where(self.env != None)  # get indices
         agent_list = deque(i for i in zip(y, x))  # create deque
         np.random.shuffle(agent_list)
@@ -967,21 +967,25 @@ class GridPPM(Environment):
 
 
 # -------------------------------------------------------------------------
-class GridPPM_simple(Environment):
+class GridOrientedPPM(Environment):
     """Again a docstring.
 
     The config file for this kind of environment should look a little bit different. The size of the viewing grid should be specified directly.
     """
 
-    REWARDS = {"wrong_action": -1,
-               "default_prey": 0,
-               "default_predator": 0,
-               "succesful_predator": 15,
+    REWARDS = {"wrong_action": -3,
+               "default_prey": 1,
+               "default_predator": 1,
+               "succesful_predator": 5,
                "offspring": 20,
-               "default": 0,
+               "death_starvation": -5,
+               "death_prey": -10,
+               "indifferent": 0,
+               "default": 1,
                "instadeath": 0}
 
-    KIN_LOOKUP = {"Predator": -1, "Prey": 1}
+    KIN_LOOKUP = {"Predator": -1, "Prey": 1, "OrientedPredator": -1,
+                  "OrientedPrey": 1}
 
     __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
                  'eaten_prey']
@@ -1061,3 +1065,182 @@ class GridPPM_simple(Environment):
 
         else:
             self.view = view
+
+    # methods -----------------------------------------------------------------
+    # populate
+    def _populate(self) -> None:
+        """Populate the Environment with given agents & values."""
+        # multiply fractions with maximum number of population
+        num_agents = np.array([self.densities]) * self.max_pop
+        num_agents = np.array(num_agents, dtype=int).ravel()  # ensure values
+
+        # consistency check
+        if len(self.agent_types) != len(num_agents):
+            raise RuntimeError("Mismatch of Dimensions - densities and"
+                               " agent_types must have same length, but"
+                               " len(densities) = {} and len(agent_types) = {}"
+                               " were given.".format(len(self.densities),
+                                                     len(self.agent_types)))
+
+        idx = np.arange(self.max_pop)  # generate indices
+        np.random.shuffle(idx)  # shuffle the indices
+
+        # loop over the agent_types, and create as many agents as specified in
+        # num_agents. The second for loop manages the right intervals of the
+        # shuffled indices.
+        for i, (num, at) in enumerate(zip(num_agents, self.agent_types)):
+            for _ in idx[sum(num_agents[:i]): sum(num_agents[:i+1])]:
+                name = at.__name__
+                a = at(**self.agent_kwargs)  # create new agent isinstance
+                self.env[_] = a  # add the agent to the environment
+                getattr(self._agents_tuple, name).add(a)
+                self._agents_set.add(a)
+
+        self.env = self.env.reshape(self.dim)
+
+    # dying
+    def _die(self, index: tuple) -> None:
+        """Delete the given agent from the environment and replace its position with None."""
+        ag = self.env[index]
+        if ag is not None:
+            if ag.memory.Rewards and training:
+                # record history in the right list
+                getattr(self.history, ag.kin).append(ag.memory)
+
+            self._agents_set.remove(ag)  # only deletes the set entry
+            getattr(self._agents_tuple, ag.kin).remove(ag)  # same as above
+            del ag
+            self.env[index] = None
+
+        else:
+            warnings.warn("Trying to delete an empty cell", RuntimeWarning)
+
+    # add agent to _agents_tuple
+    def _add_to_agents_tuple(self, *, newborn: Callable) -> None:
+        """Add the given agent in the corresponding subtuple dictionary.
+
+        The added agent is then also available in GridPPM._agents_set.
+        """
+        getattr(self._agents_tuple, newborn.kin).add(newborn)
+        self._agents_set.add(newborn)
+
+    # add agent to Environment
+    def add_to_env(self, *, target_index: tuple, newborn: Callable) -> None:
+        """Add the given agent to the environment using target_index.
+
+        The agent is added to the corresponding subtuple dictionary, and to the environment array.
+        """
+        self._add_to_agents_tuple(newborn=newborn)
+        self.env[target_index] = newborn  # we assume that the index is not occupied
+
+    # create shuffled list of agents
+    def create_shuffled_agent_list(self) -> list:
+        """Return a shuffled deque of (y,x) index arrays where the agents (at deque creation time) are."""
+        # Pylama is stupid and doesn't allow pep8 syntax like "env is not None"
+        y, x = np.where(self.env != None)  # get indices
+        agent_list = deque(i for i in zip(y, x))  # create deque
+        np.random.shuffle(agent_list)
+
+        self.shuffled_agent_list = agent_list
+
+    # convert agent to integer
+    def _ag_to_int(self, *, ag: Callable) -> int:
+        """Return a integer representation of the agent.
+
+        Predator         == -1
+        Prey             ==  1
+        ''               ==  0
+        OrientedPredator == -1
+        OrientedPrey     ==  1
+        """
+        if ag is not None:
+            return self.KIN_LOOKUP[ag.kin]  # if agent, then set value
+
+        else:
+            return 0
+
+    # a mapping from index to state
+    def index_to_state(self, *, index: tuple, ag: Callable=None) -> tuple:
+        """Return neighbourhood and food reserve for a given index.
+
+        If agent was prey and got eaten, index points to '' in env. The return for food_reserve is then None.
+        """
+        # it can happen, that the index points to an empty space in the environment. This is due to the fact, that an index in the shuffled list doesn't get removed, if a prey got eaten. thus, empty cells are just ignored.
+        state = []
+        if ag is not None:  # if ag is additionally set, directly get state
+            # this condition is fulfilled, if an agent gets eaten, because then
+            # the agent option is explicitely set
+            if ag.memory.States:  # check if agent has memory
+                state = ag.memory.States[-1]
+                return state
+
+            else:
+                neighbourhood = self.neighbourhood(index=index)
+                if conv:
+                    shape = neighbourhood.shape
+                    neighbourhood = neighbourhood.ravel()
+
+                state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
+
+                if conv:
+                    state = np.array(state).reshape(shape)
+                    state = [state, np.array([ag.food_reserve])]  # got handed an agent
+                    return state
+                else:
+                    state.append(ag.food_reserve)
+                    return np.array(state)
+
+        else:
+            active_agent = self.env[index]
+            neighbourhood = self.neighbourhood(index=index)
+            if conv:
+                shape = neighbourhood.shape
+                neighbourhood = neighbourhood.ravel()
+
+            state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
+
+            if conv:
+                state = np.array(state).reshape(shape)
+                state = [state, np.array([active_agent.food_reserve])]  # active agent
+                return state
+            else:
+                state.append(active_agent.food_reserve)
+                return np.array(state)
+
+    # neighbourhood
+    def neighbourhood(self, index: tuple) -> np.array:
+        """Return the neighbourhood specified in simulation config.
+
+        Edge cases need to be handled separately.
+        """
+        idc = np.array(index)  # for computation
+
+        # the next block should be moved somewhere to store it permanently
+        view = np.array(self.view)
+        lower_bound = -np.floor(view/2)  # mind the minus
+        upper_bound = np.ceil(view/2)
+        bounds = np.stack([lower_bound, upper_bound])  # stack of bounds
+        center = np.array(self.dim)//2  # more or less the center
+        centered_bounds = (center + bounds).T.astype(int)  # if array is rolled, these are the bounds to use for slicing
+
+        shaped_bounds = np.array(2*index).reshape(bounds.shape) + bounds
+        shaped_bounds = shaped_bounds.T.astype(int)
+
+        if np.any(shaped_bounds < 0) or np.any(shaped_bounds > self.dim):
+            # edge case
+            ybounds, xbounds = centered_bounds
+            diff = center - idc  # difference vector to center
+
+            # recenter array at idc and slice
+            nbh = np.roll(self.env, diff, axis=(0, 1))[slice(*ybounds),
+                                                       slice(*xbounds)]
+        else:
+            ybounds, xbounds = shaped_bounds
+
+            nbh = self.env[slice(*ybounds), slice(*xbounds)]
+
+        if conv:
+            return nbh
+
+        else:
+            return nbh.ravel()
