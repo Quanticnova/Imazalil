@@ -987,9 +987,17 @@ class GridOrientedPPM(Environment):
     KIN_LOOKUP = {"Predator": -1, "Prey": 1, "OrientedPredator": -1,
                   "OrientedPrey": 1}
 
-    __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
-                 'eaten_prey', '_view']
+    # rotation matrices for the possible directions
+    # since our indices are (Y, X) the coordinate system is left handed.
+    TURNS = {'left': np.array([[0, 1], [-1, 0]]),
+             'right': np.array([[0, -1], [1, 0]]),
+             'around': np.array([[-1, 0], [0, -1]])}
 
+    # slots -------------------------------------------------------------------
+    __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
+                 'eaten_prey', '_view', '_bounds']
+
+    # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple], rewards: dict=None,
                  view: tuple=(7, 7), **agent_kwargs: Union[int, float, None]):
@@ -1005,6 +1013,7 @@ class GridOrientedPPM(Environment):
         self.shuffled_agent_list = None
         self.state = None
         self._view = None
+        self._bounds = ()  # is filled once by setting view
         self.eaten_prey = deque()
 
         # populate the grid + initial shuffled agent list
@@ -1065,6 +1074,16 @@ class GridOrientedPPM(Environment):
 
         else:
             self._view = view
+
+            # set the _bounds list
+            view = np.array(view)
+            lower_bound = -np.floor(view/2)  # mind the minus
+            upper_bound = np.ceil(view/2)
+            bounds = np.stack([lower_bound, upper_bound])  # stack of bounds
+            center = np.array(self.dim)//2  # more or less the center
+            # this only is problematic, if the grid is smaller than the viewing range
+            centered_bounds = (center + bounds).T.astype(int)  # if array is rolled, these are the bounds to use for slicing
+            self._bounds = (bounds, center, centered_bounds)
 
     # methods -----------------------------------------------------------------
     # populate
@@ -1171,18 +1190,18 @@ class GridOrientedPPM(Environment):
             # this condition is fulfilled, if an agent gets eaten, because then
             # the agent option is explicitely set
             if ag.memory.States:  # check if agent has memory
-                state = ag.memory.States[-1]
+                state = ag.memory.States[-1]  # directly return state
                 return state
 
-            else:
+            else:  # if agent has no memory, create state
                 neighbourhood = self.neighbourhood(index=index)
-                if conv:
+                if conv:  # if convolutional input layer, take care of shape
                     shape = neighbourhood.shape
                     neighbourhood = neighbourhood.ravel()
 
                 state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
 
-                if conv:
+                if conv:  # if conv input layer, type of container for states is important!
                     state = np.array(state).reshape(shape)
                     state = [state, np.array([ag.food_reserve])]  # got handed an agent
                     return state
@@ -1213,27 +1232,17 @@ class GridOrientedPPM(Environment):
 
         Edge cases need to be handled separately.
         """
-        idc = np.array(index)  # for computation
+        # get const values
+        bounds, center, centered_bounds = self._bounds
 
-        # TODO: the block below is static and doesn't change - think of a nice
-        # way to store that somewhere in a variable or so, so you don't need to
-        # calculate them every time
-
-        # the next block should be moved somewhere to store it permanently
-        view = np.array(self.view)
-        lower_bound = -np.floor(view/2)  # mind the minus
-        upper_bound = np.ceil(view/2)
-        bounds = np.stack([lower_bound, upper_bound])  # stack of bounds
-        center = np.array(self.dim)//2  # more or less the center
-        centered_bounds = (center + bounds).T.astype(int)  # if array is rolled, these are the bounds to use for slicing
-
+        # calculate the bounds shaped accordingly to [[y_low, y_up], [x_low, x_up]]
         shaped_bounds = np.array(2*index).reshape(bounds.shape) + bounds
-        shaped_bounds = shaped_bounds.T.astype(int)
+        shaped_bounds = shaped_bounds.T.astype(int)  # ensure type int
 
         if np.any(shaped_bounds < 0) or np.any(shaped_bounds > self.dim):
             # edge case
             ybounds, xbounds = centered_bounds
-            diff = center - idc  # difference vector to center
+            diff = center - np.array(index)  # difference vector to center
 
             # recenter array at idc and slice
             nbh = np.roll(self.env, diff, axis=(0, 1))[slice(*ybounds),
@@ -1241,10 +1250,62 @@ class GridOrientedPPM(Environment):
         else:
             ybounds, xbounds = shaped_bounds
 
-            nbh = self.env[slice(*ybounds), slice(*xbounds)]
+            nbh = self.env[slice(*ybounds), slice(*xbounds)]  # just slice
 
         if conv:
             return nbh
 
-        else:
+        else:  # if no conv input layer is set, the nbh needs to be flattened
             return nbh.ravel()
+
+    # rotate agent
+    def turn(self, where: str) -> Callable:
+        """Return a functional that turns the agents direction."""
+        def turn_agent(index: tuple) -> None:
+            """Turn the agent at index in the given direction.
+
+            Possible directions are: 'left', 'right' & 'around'. Other
+            directions raise errors.
+            """
+            if where not in self.TURNS.keys():
+                raise RuntimeError("Unknown turn direction '{}' was given."
+                                   "".format(where))
+
+            else:
+                ag = self.env[index]
+                ag.orient = tuple(self.TURNS[where].dot(ag.orient).astype(int))
+                return self.REWARDS['indifferent']
+
+        return turn_agent
+
+    # move
+    def move(self, stand_still=False) -> Callable:
+        """Return a functional that, when called, moves the agent in direction of orientation."""
+        def move_agent(index: tuple) -> None:
+            """Move the agent.
+
+            If stand_still is set, the agent isn't moved at all. Otherwise
+            the agent is moved (or at least tries to move) in direction of its
+            orientation.
+            """
+            if stand_still:
+                return self.REWARDS['indifferent']  # do nothing
+
+            else:
+                # get agent
+                ag = self.env[index]
+
+                # get target index
+                target_index = tuple((np.array(index) + ag.orient) % self.dim)
+
+                if self.env[target_index] is not None:
+                    return self.REWARDS['wrong_action']
+
+                else:
+                    self.env[target_index] = self.env[index]  # move
+                    self.env[index] = None  # clear old position
+                    return self.REWARDS['default']  # TODO: rename rewards
+
+        return move_agent
+
+    # eating
