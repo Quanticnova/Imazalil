@@ -455,9 +455,6 @@ class OrientedPredator(Predator):
             raise TypeError("Orientation must be of 2-tuple but {} of length"
                             "{} was given.".format(type(orient), len(orient)))
 
-        elif self.orient != (0, 0):  # orient already set
-            raise RuntimeError("Orientation of agent already set!")
-
         else:
             self._orient = orient
 
@@ -527,9 +524,6 @@ class OrientedPrey(Prey):
         elif not isinstance(orient, tuple) or len(orient) > 2:
             raise TypeError("Orientation must be of 2-tuple but {} of length"
                             "{} was given.".format(type(orient), len(orient)))
-
-        elif self.orient != (0, 0):  # orient already set
-            raise RuntimeError("Orientation of agent already set!")
 
         else:
             self._orient = orient
