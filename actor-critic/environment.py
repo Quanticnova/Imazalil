@@ -993,10 +993,8 @@ class GridOrientedPPM(Environment):
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
-                 densities: Union[float, tuple], rewards: dict=None,
-                 view: tuple=(7, 7),
-                 metabolism: dict={"OrientedPredator": (0.25, 3, 3),
-                                   "OrientedPrey": (1, 2, 3)},
+                 densities: Union[float, tuple], metabolism: dict,
+                 rewards: dict=None, view: tuple=(7, 7),
                  **agent_kwargs: Union[int, float, None]):
         """Initialise the grid."""
         # call parent init function
