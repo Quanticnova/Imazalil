@@ -703,12 +703,6 @@ class GridPPM(Environment):
             # fetch agent
             agent = self.env[index]
 
-            if type(agent) not in self.agent_types:
-                raise RuntimeError("The current agent {} of kintype {} is not "
-                                   "in the list agent_types. This should not "
-                                   "have happened!".format(agent.uuid,
-                                                           agent.kin))
-
             # now we have to check if target is eatable or if there is
             # space to move to
             delta = self._target_to_value(target)
@@ -995,12 +989,15 @@ class GridOrientedPPM(Environment):
 
     # slots -------------------------------------------------------------------
     __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
-                 'eaten_prey', '_view', '_bounds']
+                 'eaten_prey', '_view', '_bounds', '_metabolism', '_kins']
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
                  densities: Union[float, tuple], rewards: dict=None,
-                 view: tuple=(7, 7), **agent_kwargs: Union[int, float, None]):
+                 view: tuple=(7, 7),
+                 metabolism: dict={"OrientedPredator": (0.25, 3, 3),
+                                   "OrientedPrey": (1, 2, 3)},
+                 **agent_kwargs: Union[int, float, None]):
         """Initialise the grid."""
         # call parent init function
         super().__init__(dim=dim, agent_types=agent_types, densities=densities,
@@ -1013,7 +1010,9 @@ class GridOrientedPPM(Environment):
         self.shuffled_agent_list = None
         self.state = None
         self._view = None
+        self._kins = []  # set by populate
         self._bounds = ()  # is filled once by setting view
+        self._metabolism = {}  # this is set in the environment, since its the same for all agents of a species
         self.eaten_prey = deque()
 
         # populate the grid + initial shuffled agent list
@@ -1085,6 +1084,36 @@ class GridOrientedPPM(Environment):
             centered_bounds = (center + bounds).T.astype(int)  # if array is rolled, these are the bounds to use for slicing
             self._bounds = (bounds, center, centered_bounds)
 
+    # metabolism
+    @property
+    def metabolism(self) -> dict:
+        """Return the metabolism properties of the agents in the environment."""
+        return self._metabolism
+
+    @metabolism.setter
+    def metabolism(self, metabolism: dict) -> None:
+        """Set the metabolism tuple for the environment."""
+        if not isinstance(metabolism, dict):
+            raise TypeError("Metabolism must be of type dict but type {} was"
+                            " given.".format(type(metabolism)))
+
+        elif len(metabolism) != len(self.densities):
+            raise RuntimeError("Dimension mismatch between metabolism ({}) and"
+                               "agent densities ({}).".format(len(metabolism),
+                                                              len(self.densities)))
+
+        elif len(self.metabolism):
+            raise RuntimeError("Metabolism already set to {}."
+                               "".format(self.metabolism))
+
+        elif not all(kin in self._kins for kin in metabolism.keys()):
+            raise RuntimeError("Unknown species found in metabolism: {}\n"
+                               "Known species: {}".format(metabolism.keys(),
+                                                          self.KIN_LOOKUP.keys()))
+
+        else:
+            self._metabolism = metabolism
+
     # methods -----------------------------------------------------------------
     # populate
     def _populate(self) -> None:
@@ -1107,6 +1136,7 @@ class GridOrientedPPM(Environment):
         # loop over the agent_types, and create as many agents as specified in
         # num_agents. The second for loop manages the right intervals of the
         # shuffled indices.
+        self._kins = []  # empty any existing kins
         for i, (num, at) in enumerate(zip(num_agents, self.agent_types)):
             for _ in idx[sum(num_agents[:i]): sum(num_agents[:i+1])]:
                 name = at.__name__
@@ -1114,6 +1144,7 @@ class GridOrientedPPM(Environment):
                 self.env[_] = a  # add the agent to the environment
                 getattr(self._agents_tuple, name).add(a)
                 self._agents_set.add(a)
+            self._kins.append(name)
 
         self.env = self.env.reshape(self.dim)
 
@@ -1261,7 +1292,7 @@ class GridOrientedPPM(Environment):
     # rotate agent
     def turn(self, where: str) -> Callable:
         """Return a functional that turns the agents direction."""
-        def turn_agent(index: tuple) -> None:
+        def turn_agent(index: tuple) -> int:
             """Turn the agent at index in the given direction.
 
             Possible directions are: 'left', 'right' & 'around'. Other
@@ -1281,7 +1312,7 @@ class GridOrientedPPM(Environment):
     # move
     def move(self, stand_still=False) -> Callable:
         """Return a functional that, when called, moves the agent in direction of orientation."""
-        def move_agent(index: tuple) -> None:
+        def move_agent(index: tuple) -> int:
             """Move the agent.
 
             If stand_still is set, the agent isn't moved at all. Otherwise
@@ -1308,4 +1339,78 @@ class GridOrientedPPM(Environment):
 
         return move_agent
 
+    # eating helper funcion
+    def _hunting(self, *, predator: Callable, target_cell: tuple, kin: str,
+                 target_agent: Callable, agent_index: tuple) -> int:
+        """I help to keep the eat method not too complex and more clean."""
+        if predator.p_eat < 1.0:
+            roll = rd.random()
+            if roll > predator.p_eat:
+                return self.REWARDS['default_predator']
+
+        predator.food_reserve += self.metabolism[kin]['satiety']
+        self.eaten_prey.append((target_cell, target_agent))
+        target_agent.got_eaten = True  # Preys have this prop
+        self._die(target_cell)
+        self.move()(agent_index)
+        return self.REWARDS['succesful_predator']
+
     # eating
+    def eat(self, stand_still=False) -> Callable:
+        """Return a functional that, when called, lets an agent try to eat."""
+        def eat_and_move(index: tuple) -> int:
+            """Agent eats (or tries to eat) the cell in its orientation.
+
+            If stand_still is set (only possible for preys), the agent doesn't
+            move and eats in its cell.
+            """
+            # get agent
+            ag = self.env[index]
+            kin = ag.kin
+
+            if not stand_still:
+                # calculate target
+                target = (np.array(ag.orient) + np.array(index)) % self.dim
+                target_cell = self.env[target]
+
+            else:
+                target = None  # no target
+
+            if kin in ["Prey", "OrientedPrey"]:
+                if target is None:  # just stand around and do nothing
+                    ag.food_reserve += self.metabolism[kin]['satiety']
+                    return self.REWARDS['default_prey']
+
+                else:  # actually move
+                    # target should be calculated if in this branch
+                    if target_cell is None:
+                        self.move()(index)
+                        ag.food_reserve += self.metabolism[kin]['satiety']
+                        return self.REWARDS['default_prey']
+
+                    else:
+                        return self.REWARDS['wrong_action']
+
+            elif kin in ["Predator", "OrientedPredator"]:
+                if stand_still:  # predators can't eat on the spot
+                    return self.REWARDS['wrong_action']
+
+                else:
+                    if target_cell is None:
+                        return self.REWARDS['wrong_action']  # don't eat air
+
+                    elif target_cell.kin in ["Predator", "OrientedPredator"]:
+                        # don't eat thy own specimen
+                        return self.REWARDS['wrong_action']
+
+                    else:  # actually try to eat
+                        reward = self._hunting(predator=ag, agent_index=index,
+                                               kin=kin, target_agent=target,
+                                               target_cell=target_cell)
+                        return reward
+
+            else:
+                raise RuntimeError("encountered unknown species of type {} but"
+                                   " either Prey or Predator was expected! This"
+                                   " should not have happened!"
+                                   "".format(kin))
