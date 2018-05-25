@@ -1412,3 +1412,42 @@ class GridOrientedPPM(Environment):
                                    " either Prey or Predator was expected! This"
                                    " should not have happened!"
                                    "".format(kin))
+
+        return eat_and_move
+
+    # procreating
+    def procreate(self) -> Callable:
+        """Return a functional that, when called, creates offspring."""
+        def procreate_forward(index: tuple) -> None:
+            """Agent at index tries to procreate in its orientation."""
+            ag = self.env[index]  # get index
+            kin = ag.kin
+
+            # calculate target
+            target = (np.array(ag.orient) + np.array(index)) % self.dim
+            target_cell = self.env[target]
+
+            if ag.food_reserve > self.metabolism[kin]['exhaust']:
+                if target_cell is not None:
+                    # target cell is not empty
+                    return self.REWARDS['wrong_action']
+
+                else:
+                    # try to breed
+                    if ag.p_breed < 1.0:
+                        roll = rd.random()
+                        if roll > ag.p_breed:
+                            if kin in ["Prey", "OrientedPrey"]:
+                                return self.REWARDS['default_prey']
+
+                            else:
+                                return self.REWARDS['default_predator']
+
+                    exhaust = self.metabolism[kin]['exhaust']
+                    newborn = ag.procreate(food_reserve=exhaust)
+                    self.add_to_env(target_index=target, newborn=newborn)
+                    ag.food_reserve -= exhaust
+
+            else:
+                # don't try to eat without enough food food_reserve
+                return self.REWARDS['wrong_action']
