@@ -279,24 +279,29 @@ def main():
         if len(env.history.Predator) and len(env.history.Prey) and training:
             print("\n: optimizing now...")
             opt_time_start = timestamp(return_obj=True)
-            l, mr = ac.finish_episode(model=PreyModel, optimizer=PreyOptimizer,
-                                      history=env.history.Prey,
-                                      gamma=cfg['Network']['gamma'],
-                                      return_means=True)
+            fcalls = {}
+            l, mr, sa = ac.finish_episode(model=PreyModel,
+                                          optimizer=PreyOptimizer,
+                                          history=env.history.Prey,
+                                          gamma=cfg['Network']['gamma'],
+                                          return_means=True)
+            fcalls['Prey'] = sa
             print(":: [avg] Prey loss:\t{}\t Prey reward: {}"
                   "".format(l.item(), mr))
             avg['mean_prey_loss'].append(l.item())
             avg['mean_prey_rewards'].append(mr)
 
-            l, mr = ac.finish_episode(model=PredatorModel,
-                                      optimizer=PredatorOptimizer,
-                                      history=env.history.Predator,
-                                      gamma=cfg['Network']['gamma'],
-                                      return_means=True)
+            l, mr, sa = ac.finish_episode(model=PredatorModel,
+                                          optimizer=PredatorOptimizer,
+                                          history=env.history.Predator,
+                                          gamma=cfg['Network']['gamma'],
+                                          return_means=True)
+            fcalls['Predator'] = sa
             print(":: [avg] Predator loss:\t{}\t Predator reward: {}"
                   "".format(l.item(), mr))
             avg['mean_pred_loss'].append(l.item())
             avg['mean_pred_rewards'].append(mr)
+            epsbatch[-1].append(fcalls)  # save the function calls
 
             print("\n: optimization time: {}".format(timestamp(return_obj=True) - opt_time_start))
 
