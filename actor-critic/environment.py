@@ -326,31 +326,31 @@ class GridPPM(Environment):
 
         # setup of the action ACTION_LOOKUP
         self.action_lookup = {  # 0: self.move('LU'),
-                              0: self.move('U'),
+                              0: self.move('D'),
                               # 2: self.move('RU'),
                               1: self.move('L'),
                               2: self.move(''),
                               3: self.move('R'),
                               # 6: self.move('LD'),
-                              4: self.move('D'),
+                              4: self.move('U'),
                               # 8: self.move('RD'),
                               # 9: self.eat('LU'),
-                              5: self.eat('U'),
+                              5: self.eat('D'),
                               # 11: self.eat('RU'),
                               6: self.eat('L'),
                               7: self.eat(''),
                               8: self.eat('R'),
                               # 15: self.eat('LD'),
-                              9: self.eat('D'),
+                              9: self.eat('U'),
                               # 17: self.eat('RD'),
                               # 18: self.eat('LU'),
-                              10: self.procreate('U'),
+                              10: self.procreate('D'),
                               # 20: self.procreate('RU'),
                               11: self.procreate('L'),
                               12: self.procreate(''),
                               13: self.procreate('R'),
                               # 24: self.procreate('LD'),
-                              14: self.procreate('D'),
+                              14: self.procreate('U'),
                               # 26: self.procreate('RD')
                               }
 
@@ -410,9 +410,9 @@ class GridPPM(Environment):
         if not dirs:
             return np.array([y, x])
         else:  # first Y, then X coordinate
-            if "D" in dirs:
-                y -= 1
             if "U" in dirs:
+                y -= 1
+            if "D" in dirs:
                 y += 1
             if "L" in dirs:
                 x -= 1
@@ -892,7 +892,7 @@ class GridPPM(Environment):
             agent.memory.Rewards.append(reward)
 
         # check if one species died out and if so, save history of living agents
-        if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
+        if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) == 0:
             done = True  # at least one species died out
 
             # since the episode is now finished, append the rest of the agents'
@@ -1374,7 +1374,7 @@ class GridOrientedPPM(Environment):
             else:
                 target = None  # no target
 
-            if kin in ["Prey", "OrientedPrey"]:
+            if "Prey" in kin:
                 if target is None:  # just stand around and do nothing
                     ag.food_reserve += self.metabolism[kin]['satiety']
                     return self.REWARDS['default_prey']
@@ -1389,7 +1389,7 @@ class GridOrientedPPM(Environment):
                     else:
                         return self.REWARDS['wrong_action']
 
-            elif kin in ["Predator", "OrientedPredator"]:
+            elif "Predator" in kin:
                 if stand_still:  # predators can't eat on the spot
                     return self.REWARDS['wrong_action']
 
@@ -1418,7 +1418,7 @@ class GridOrientedPPM(Environment):
     # procreating
     def procreate(self) -> Callable:
         """Return a functional that, when called, creates offspring."""
-        def procreate_forward(index: tuple) -> None:
+        def procreate_forward(index: tuple) -> int:
             """Agent at index tries to procreate in its orientation."""
             ag = self.env[index]  # get index
             kin = ag.kin
@@ -1437,7 +1437,7 @@ class GridOrientedPPM(Environment):
                     if ag.p_breed < 1.0:
                         roll = rd.random()
                         if roll > ag.p_breed:
-                            if kin in ["Prey", "OrientedPrey"]:
+                            if "Prey" in kin:
                                 return self.REWARDS['default_prey']
 
                             else:
@@ -1447,7 +1447,173 @@ class GridOrientedPPM(Environment):
                     newborn = ag.procreate(food_reserve=exhaust)
                     self.add_to_env(target_index=target, newborn=newborn)
                     ag.food_reserve -= exhaust
+                    return self.REWARDS['offspring']
 
             else:
                 # don't try to eat without enough food food_reserve
                 return self.REWARDS['wrong_action']
+
+        return procreate_forward
+
+        # methods for actor-critic --------------------------------------------
+        def reset(self) -> None:
+            """Reset the environment."""
+            # clear the sets
+            self._agents_tuple.Predator.clear()
+            self._agents_tuple.Prey.clear()
+            self._agents_set.clear()
+
+            # empty Environment
+            self._env = np.empty(self.max_pop, dtype=object)
+
+            # populate the grid and agent dicts
+            self._populate()
+
+            # create new shuffled agents list
+            self.create_shuffled_agent_list()
+
+            # clear eaten prey list
+            self.eaten_prey.clear()
+
+            # clear history
+            self.history.Predator.clear()
+            self.history.Prey.clear()
+
+            print(": Environment reset complete...")
+
+            # pop list and return state
+            # index = self.shuffled_agent_list.pop()
+            # self.state = self.index_to_state(index=index)
+
+            # return self.state, index
+
+        def step(self, *, policy: dict, select_action: Callable) -> tuple:
+            """Take a step in the environment.
+
+            policy should be a dictionary of all used policies, with the agent
+            kin type as key and actual policy model as value.
+
+            select_action is a functional that takes the model, agent and state
+            and returns the "optimal" action for the given state (with a small
+            probability for a different action).
+            """
+            # check, if any species died out:
+            done = any([len(kin) == 0 for kin in self._agents_tuple])
+            reward = 0  # initial
+
+            # first check if any prey got eaten +++++++++++++++++++++++++++++++
+            if len(self.eaten_prey) > 0:
+                index, ag = self.eaten_prey.pop()
+                state = self.index_to_state(index=index, ag=ag)
+
+                if index in self.shuffled_agent_list:  # cleanup
+                    self.shuffled_agent_list.remove(index)
+
+                # TODO: check if this part is needed. -------------------------
+                if state[-1] is None:
+                    warnings.warn("food reserve in state was None.", RuntimeWarning)
+                    state[-1] = int(ag.food_reserve)
+                # -------------------------------------------------------------
+
+                # actual NN magic happening here
+                model = policy[ag.kin]
+                action = select_action(model=model, agent=ag, state=state)
+
+                # since we're already in the branch for eaten prey, no need to
+                # check for the eaten_prey attribute actually
+                reward = self.REWARDS['death_prey']
+
+                if training:
+                    ag.memory.Rewards.append(reward)
+
+                return reward, state, done
+
+            # regular step ++++++++++++++++++++++++++++++++++++++++++++++++++++
+            elif len(self.shuffled_agent_list) > 0:
+                # get next agent
+                index = self.shuffled_agent_list.pop()
+                ag = self.env[index]
+
+                # this part is again for checking: ----------------------------
+                while(ag is None):
+                    warnings.warn("Popped an empty cell from agent list."
+                                  " This should not have happende!",
+                                  RuntimeWarning)
+                    try:
+                        index = self.shuffled_agent_list.pop()
+                        ag = self.env[index]
+                    except IndexError:  # happens when list is empty
+                        self.create_shuffled_agent_list()  # should do the trick
+                        # FIXME: the above is stupid, because then I have no
+                        # control over the number of timesteps! daaaaaang!
+                # -------------------------------------------------------------
+
+                kin = ag.kin  # it's needed multiple times later
+
+                ag.food_reserve -= ag.metabolism['fast']  # reduce food reserve
+                state = self.index_to_state(index=index)  # get state
+
+                # TODO: check if this part is needed. -------------------------
+                if state[-1] is None:
+                    warnings.warn("food reserve in state was None.", RuntimeWarning)
+                    state[-1] = int(ag.food_reserve)
+                # -------------------------------------------------------------
+
+                # if mortality is set, then check if agent starved and if,
+                # let it die and return reward, state, done
+                if self.agent_kwargs['mortality'] and (ag.food_reserve <= 0):
+                    self._die(index=index)
+                    reward = self.REWARDS['death_starvation']  # more death!
+                    # save the reward
+                    if training:
+                        ag.memory.Rewards.append(reward)
+
+                    return reward, state, done
+
+                # check for statistical death of predators
+                # sorry dear reader for the long if statement
+                instadeath = self.agent_kwargs['instadeath']
+                kin_tuple = getattr(self._agents_tuple, kin)
+                if (instadeath > 0) and ("Predator" in kin) and (len(kin_tuple) > 1):
+                    death_roll = rd.random()  # roll for your life!
+                    if death_roll <= instadeath:
+                        self._die(index=index)
+                        reward = self.REWARDS['instadeath']
+                        # save the reward
+                        if training:
+                            ag.memory.Rewards.append(reward)
+
+                        return reward, state, done
+
+                # if step continued this far, then act regularly
+                # again, actual NN magic happening here
+                model = policy[kin]  # get policy depending on agent type
+                action = select_action(model=model, agent=ag, state=state)
+                act = self.action_lookup[action]  # select action
+                reward = act(index=index)  # act and get reward
+                # save the reward
+                if training:
+                    ag.memory.Rewards.append(reward)
+
+                # TODO: remove this part since its just here for checking -----
+                if reward is None:
+                    raise RuntimeError("reward should not be of type None! The"
+                                       " last action was {} by agent {}"
+                                       "".format(act, ag))
+                # -------------------------------------------------------------
+
+                if done and training:
+                    # the episode is finished, append the rest of the agents'
+                    # memories to the environments history
+                    for ag in self._agents_set:
+                        if ag.memory.Rewards:  # if agent actually has memory
+                            getattr(self.history, ag.kin).append(ag.memory)
+
+                return reward, state, done
+
+
+
+            # if conditions above are fulfilled, code below is not reached
+            # FIXME: also problematic; creating new agent lists should be out-
+            # side of the step method!!
+            self.create_shuffled_agent_list()
