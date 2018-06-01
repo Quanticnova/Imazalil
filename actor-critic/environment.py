@@ -1036,7 +1036,14 @@ class GridOrientedPPM(Environment):
                                 " {} was given.".format(type(rewards)))
 
         # setup of the action ACTION_LOOKUP
-        self.action_lookup = {  # TODO: Do me!
+        self.action_lookup = {0: self.turn("left"),
+                              1: self.turn("right"),
+                              2: self.turn("around"),
+                              3: self.move(stand_still=True),
+                              4: self.move(),
+                              5: self.eat(stand_still=True),
+                              6: self.eat(),
+                              7: self.procreate()
                               }
 
     # properties --------------------------------------------------------------
@@ -1455,165 +1462,207 @@ class GridOrientedPPM(Environment):
 
         return procreate_forward
 
-        # methods for actor-critic --------------------------------------------
-        def reset(self) -> None:
-            """Reset the environment."""
-            # clear the sets
-            self._agents_tuple.Predator.clear()
-            self._agents_tuple.Prey.clear()
-            self._agents_set.clear()
+    # methods for actor-critic --------------------------------------------
+    def reset(self) -> None:
+        """Reset the environment."""
+        # clear the sets
+        self._agents_tuple.Predator.clear()
+        self._agents_tuple.Prey.clear()
+        self._agents_set.clear()
 
-            # empty Environment
-            self._env = np.empty(self.max_pop, dtype=object)
+        # empty Environment
+        self._env = np.empty(self.max_pop, dtype=object)
 
-            # populate the grid and agent dicts
-            self._populate()
+        # populate the grid and agent dicts
+        self._populate()
 
-            # create new shuffled agents list
-            self.create_shuffled_agent_list()
+        # create new shuffled agents list
+        self.create_shuffled_agent_list()
 
-            # clear eaten prey list
-            self.eaten_prey.clear()
+        # clear eaten prey list
+        self.eaten_prey.clear()
 
-            # clear history
-            self.history.Predator.clear()
-            self.history.Prey.clear()
+        # clear history
+        self.history.Predator.clear()
+        self.history.Prey.clear()
 
-            print(": Environment reset complete...")
+        print(": Environment reset complete...")
 
-            # pop list and return state
-            # index = self.shuffled_agent_list.pop()
-            # self.state = self.index_to_state(index=index)
+        # pop list and return state
+        # index = self.shuffled_agent_list.pop()
+        # self.state = self.index_to_state(index=index)
 
-            # return self.state, index
+        # return self.state, index
 
-        def step(self, *, policy: dict, select_action: Callable) -> tuple:
-            """Take a step in the environment.
+    def step(self, *, policy: dict, select_action: Callable) -> tuple:
+        """Take a step in the environment.
 
-            policy should be a dictionary of all used policies, with the agent
-            kin type as key and actual policy model as value.
+        policy should be a dictionary of all used policies, with the agent
+        kin type as key and actual policy model as value.
 
-            select_action is a functional that takes the model, agent and state
-            and returns the "optimal" action for the given state (with a small
-            probability for a different action).
-            """
-            # check, if any species died out:
-            done = any([len(kin) == 0 for kin in self._agents_tuple])
-            reward = 0  # initial
+        select_action is a functional that takes the model, agent and state
+        and returns the "optimal" action for the given state (with a small
+        probability for a different action).
+        """
+        # check, if any species died out:
+        done = any([len(kin) == 0 for kin in self._agents_tuple])
+        reward = 0  # initial
 
-            # first check if any prey got eaten +++++++++++++++++++++++++++++++
-            if len(self.eaten_prey) > 0:
-                index, ag = self.eaten_prey.pop()
-                state = self.index_to_state(index=index, ag=ag)
+        # first check if any prey got eaten +++++++++++++++++++++++++++++++
+        if len(self.eaten_prey) > 0:
+            index, ag = self.eaten_prey.pop()
+            state = self.index_to_state(index=index, ag=ag)
 
-                if index in self.shuffled_agent_list:  # cleanup
-                    self.shuffled_agent_list.remove(index)
+            if index in self.shuffled_agent_list:  # cleanup
+                self.shuffled_agent_list.remove(index)
 
-                # TODO: check if this part is needed. -------------------------
-                if state[-1] is None:
-                    warnings.warn("food reserve in state was None.", RuntimeWarning)
-                    state[-1] = int(ag.food_reserve)
-                # -------------------------------------------------------------
+            # TODO: check if this part is needed. -------------------------
+            if state[-1] is None:
+                warnings.warn("food reserve in state was None.", RuntimeWarning)
+                state[-1] = int(ag.food_reserve)
+            # -------------------------------------------------------------
 
-                # actual NN magic happening here
-                model = policy[ag.kin]
-                action = select_action(model=model, agent=ag, state=state)
+            # actual NN magic happening here
+            model = policy[ag.kin]
+            action = select_action(model=model, agent=ag, state=state)
 
-                # since we're already in the branch for eaten prey, no need to
-                # check for the eaten_prey attribute actually
-                reward = self.REWARDS['death_prey']
+            # since we're already in the branch for eaten prey, no need to
+            # check for the eaten_prey attribute actually
+            reward = self.REWARDS['death_prey']
 
+            if training:
+                ag.memory.Rewards.append(reward)
+
+            return reward, state, done
+
+        # regular step ++++++++++++++++++++++++++++++++++++++++++++++++++++
+        elif len(self.shuffled_agent_list) > 0:
+            # get next agent
+            index = self.shuffled_agent_list.pop()
+            ag = self.env[index]
+
+            # this part is again for checking: ----------------------------
+            while(ag is None):
+                warnings.warn("Popped an empty cell from agent list."
+                              " This should not have happende!",
+                              RuntimeWarning)
+                try:
+                    index = self.shuffled_agent_list.pop()
+                    ag = self.env[index]
+                except IndexError:  # happens when list is empty
+                    # list is empty, return some values, but next timestep
+                    # will come soon!
+                    return 0, 0, done
+            # -------------------------------------------------------------
+
+            kin = ag.kin  # it's needed multiple times later
+
+            ag.food_reserve -= ag.metabolism['fast']  # reduce food reserve
+            state = self.index_to_state(index=index)  # get state
+
+            # TODO: check if this part is needed. -------------------------
+            if state[-1] is None:
+                warnings.warn("food reserve in state was None.", RuntimeWarning)
+                state[-1] = int(ag.food_reserve)
+            # -------------------------------------------------------------
+
+            # if mortality is set, then check if agent starved and if,
+            # let it die and return reward, state, done
+            if self.agent_kwargs['mortality'] and (ag.food_reserve <= 0):
+                self._die(index=index)
+                reward = self.REWARDS['death_starvation']  # more death!
+                # save the reward
                 if training:
                     ag.memory.Rewards.append(reward)
 
                 return reward, state, done
 
-            # regular step ++++++++++++++++++++++++++++++++++++++++++++++++++++
-            elif len(self.shuffled_agent_list) > 0:
-                # get next agent
-                index = self.shuffled_agent_list.pop()
-                ag = self.env[index]
-
-                # this part is again for checking: ----------------------------
-                while(ag is None):
-                    warnings.warn("Popped an empty cell from agent list."
-                                  " This should not have happende!",
-                                  RuntimeWarning)
-                    try:
-                        index = self.shuffled_agent_list.pop()
-                        ag = self.env[index]
-                    except IndexError:  # happens when list is empty
-                        self.create_shuffled_agent_list()  # should do the trick
-                        # FIXME: the above is stupid, because then I have no
-                        # control over the number of timesteps! daaaaaang!
-                # -------------------------------------------------------------
-
-                kin = ag.kin  # it's needed multiple times later
-
-                ag.food_reserve -= ag.metabolism['fast']  # reduce food reserve
-                state = self.index_to_state(index=index)  # get state
-
-                # TODO: check if this part is needed. -------------------------
-                if state[-1] is None:
-                    warnings.warn("food reserve in state was None.", RuntimeWarning)
-                    state[-1] = int(ag.food_reserve)
-                # -------------------------------------------------------------
-
-                # if mortality is set, then check if agent starved and if,
-                # let it die and return reward, state, done
-                if self.agent_kwargs['mortality'] and (ag.food_reserve <= 0):
+            # check for statistical death of predators
+            # sorry dear reader for the long if statement
+            instadeath = self.agent_kwargs['instadeath']
+            kin_tuple = getattr(self._agents_tuple, kin)
+            if (instadeath > 0) and ("Predator" in kin) and (len(kin_tuple) > 1):
+                death_roll = rd.random()  # roll for your life!
+                if death_roll <= instadeath:
                     self._die(index=index)
-                    reward = self.REWARDS['death_starvation']  # more death!
+                    reward = self.REWARDS['instadeath']
                     # save the reward
                     if training:
                         ag.memory.Rewards.append(reward)
 
                     return reward, state, done
 
-                # check for statistical death of predators
-                # sorry dear reader for the long if statement
-                instadeath = self.agent_kwargs['instadeath']
-                kin_tuple = getattr(self._agents_tuple, kin)
-                if (instadeath > 0) and ("Predator" in kin) and (len(kin_tuple) > 1):
-                    death_roll = rd.random()  # roll for your life!
-                    if death_roll <= instadeath:
-                        self._die(index=index)
-                        reward = self.REWARDS['instadeath']
-                        # save the reward
-                        if training:
-                            ag.memory.Rewards.append(reward)
+            # if step continued this far, then act regularly
+            # again, actual NN magic happening here
+            model = policy[kin]  # get policy depending on agent type
+            action = select_action(model=model, agent=ag, state=state)
+            act = self.action_lookup[action]  # select action
+            reward = act(index=index)  # act and get reward
+            # save the reward
+            if training:
+                ag.memory.Rewards.append(reward)
 
-                        return reward, state, done
+            # TODO: remove this part since its just here for checking ---------
+            if reward is None:
+                raise RuntimeError("reward should not be of type None! The"
+                                   " last action was {} by agent {}"
+                                   "".format(act, ag))
+            # -----------------------------------------------------------------
 
-                # if step continued this far, then act regularly
-                # again, actual NN magic happening here
-                model = policy[kin]  # get policy depending on agent type
-                action = select_action(model=model, agent=ag, state=state)
-                act = self.action_lookup[action]  # select action
-                reward = act(index=index)  # act and get reward
-                # save the reward
-                if training:
-                    ag.memory.Rewards.append(reward)
+            if done and training:
+                # the episode is finished, append the rest of the agents'
+                # memories to the environments history
+                for ag in self._agents_set:
+                    if ag.memory.Rewards:  # if agent actually has memory
+                        getattr(self.history, ag.kin).append(ag.memory)
 
-                # TODO: remove this part since its just here for checking -----
-                if reward is None:
-                    raise RuntimeError("reward should not be of type None! The"
-                                       " last action was {} by agent {}"
-                                       "".format(act, ag))
-                # -------------------------------------------------------------
+            return reward, state, done
 
-                if done and training:
-                    # the episode is finished, append the rest of the agents'
-                    # memories to the environments history
-                    for ag in self._agents_set:
-                        if ag.memory.Rewards:  # if agent actually has memory
-                            getattr(self.history, ag.kin).append(ag.memory)
+        else:
+            warnings.warn("This branch should actually never be reached."
+                          " Check your code again!", RuntimeWarning)
 
-                return reward, state, done
+    # rendering
+    def render(self, *, episode: int, timestep: int, params: dict):
+        """Visualize the current timestep."""
+        plotarray = np.zeros(shape=np.shape(self.env))  # initialize
+        y, x = np.where(self.env != None)  # find indices
 
+        orients = np.zeros(shape=(len(y), 2))  # allocate space
+        for i, idc in enumerate(zip(y, x)):
+            ag = self.env[idc]
+            plotarray[idc] = self._ag_to_int(ag=ag)
+            orients[i] = ag.orient  # get agent orientation
+        orients = orients.T  # transpose
 
+        fig = plt.figure(figsize=params['figsize'])
+        ax = fig.add_subplot(111)  # lets just leave this like this..
 
-            # if conditions above are fulfilled, code below is not reached
-            # FIXME: also problematic; creating new agent lists should be out-
-            # side of the step method!!
-            self.create_shuffled_agent_list()
+        # population
+        im = ax.imshow(ma.masked_equal(plotarray, 0), cmap=params['cmap'],
+                       vmin=-1, vmax=1)
+
+        # orientation
+        ax.quiver(x, y, *orients, color=params['arrowcolor'],
+                  pivot='middle')
+
+        cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
+                            ticks=[-1, 1])
+        cbar.ax.set_yticklabels(self._kins)
+
+        # cleanup
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        info = " Pred: {}, Prey: {}".format(len(self._agents_tuple.Predator),
+                                            len(self._agents_tuple.Prey))
+
+        ax.set_title("Episode {}, Timestep {} |".format(episode, timestep) +
+                     info)
+
+        filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, timestep)
+        fig.savefig(params['filepath'] + filename, dpi=params['dpi'],
+                    format=params['fmt'])
+        plt.close(fig)
