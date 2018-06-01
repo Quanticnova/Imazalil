@@ -1,0 +1,76 @@
+# configuration file for the actor-critic PPM
+# DESCRIPTION -----------------------------------------------------------------
+# - metabolism: a dict introduced with the GridOrientedPPM Model. It contains
+#       a dict for each species in the model (in the same order as in
+#       densities). The dict contents are: {Amount of food_reserve reduced
+#       per timestep, amount of fr gained from eating, amount of fr lost due to
+#       giving birth}
+Model:
+    dim:                  !!python/tuple [16, 16]  # dimensionality
+    densities:            !!python/tuple [0.01, 0.01]  # Predator, Prey
+    food_reserve:         3
+    max_food_reserve:     8
+    metabolism:  # see description!
+      OrientedPredator:
+        fast:             0.25  # decrease every timestep
+        satiety:          3  # get for eating
+        exhaust:          3  # for mating
+      OrientedPrey:
+        fast:             1
+        satiety:          2
+        exhaust:          3
+    generation:           0
+    neighbourhood:        49  # only squares of odd numbers, e.g. 9, 25, 49
+    p_breed:              1.0
+    p_flee:               0.0
+    p_eat:                1.0  # = 1-p_flee
+    mortality:            True  # if False, agents are immortal, can't starve
+    instadeath:           0.000  # for predators; if there is more than 1 predator, each predator can die with that probability
+    rewards:
+      wrong_action:       -3
+      default_prey:       1
+      default_predator:   1
+      indifferent:        0
+      succesful_predator: 5
+      offspring:          20
+      death_starvation:   -5
+      death_prey:         -10
+      default:            1
+      instadeath:         0
+Sim:
+    goal:                 "training"  # or "testing"; trainig is regular usage, testing is without using memory/history and without optimization
+    steps:                500 # training with more than 1000 timesteps reeeeeeeally slows down the optimization
+    episodes:             10000
+    save_state_to:        &path "plots/conv_oriented_16x16/"  # store simulation
+    resume_state_from:    ""  # resume but is also command line option
+    record_values:        "generation, reward"
+    save_state_every:     20  # episodes
+
+Plot:
+    every:                1  # set to 1 to plot every episode
+    render:               True
+    params:
+      filepath:           *path
+      figsize:            !!python/tuple [9,12]
+      fmt:                "png"
+      dpi:                150
+      cmap:               "viridis"
+      arrowcolor:         "r"  # red
+
+Network:
+    kind:               'conv'  # fully connected without any conv layers
+    mode:               'cpu'  # can also be 'gpu'
+    layers:             # I still need a convenient way to describe this
+      conv1:
+          in_channels:  1
+          out_channels: 3
+          kernel_size:  3
+          padding:      1
+          stride:       1
+      affine1:          !!python/tuple [1, 1]
+      hidden1:          !!python/tuple [148, 64]
+      hidden2:          !!python/tuple [64, 32]
+      hidden3:          !!python/tuple [32, 32]
+      action_head:      !!python/tuple [32, 8]
+      value_head:       !!python/tuple [32, 1]
+    gamma:              0.9  # discount factor
