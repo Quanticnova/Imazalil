@@ -12,6 +12,7 @@ from gym.utils import seeding
 from tools import type_check, timestamp, function_call_counter
 
 hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
+orientedHistory = namedtuple('history', ('OrientedPredator', 'OrientedPrey'))
 
 
 def init(*, goal: str="training", policy_kind: str="conv"):
@@ -56,7 +57,7 @@ class Environment:
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
-                 densities: Union[float, tuple], history: tuple=None,
+                 densities: Union[float, tuple], history: NamedTuple=None,
                  **agent_kwargs: Union[int, float, None]):
         """Initialize the environment.
 
@@ -999,8 +1000,9 @@ class GridOrientedPPM(Environment):
         """Initialise the grid."""
         # call parent init function
         super().__init__(dim=dim, agent_types=agent_types, densities=densities,
+                         history=orientedHistory(deque(), deque()),  # empty history
                          **agent_kwargs)
-
+        print(self.agent_kwargs)
         # initialize empty environment
         self._env = np.empty(self.max_pop, dtype=object)
 
@@ -1019,6 +1021,9 @@ class GridOrientedPPM(Environment):
 
         # view
         self.view = view
+
+        # Metabolism
+        self.metabolism = metabolism
 
         # update the rewards
         if rewards is not None:
@@ -1043,8 +1048,7 @@ class GridOrientedPPM(Environment):
                               4: self.move(),
                               5: self.eat(stand_still=True),
                               6: self.eat(),
-                              7: self.procreate()
-                              }
+                              7: self.procreate()}
 
     # properties --------------------------------------------------------------
     # env
@@ -1375,7 +1379,7 @@ class GridOrientedPPM(Environment):
 
             if not stand_still:
                 # calculate target
-                target = (np.array(ag.orient) + np.array(index)) % self.dim
+                target = tuple((np.array(index) + ag.orient) % self.dim)
                 target_cell = self.env[target]
 
             else:
@@ -1410,8 +1414,7 @@ class GridOrientedPPM(Environment):
 
                     else:  # actually try to eat
                         reward = self._hunting(predator=ag, agent_index=index,
-                                               kin=kin, target_agent=target,
-                                               target_cell=target_cell)
+                                               kin=kin, target_cell=target, target_agent=target_cell)
                         return reward
 
             else:
@@ -1431,7 +1434,7 @@ class GridOrientedPPM(Environment):
             kin = ag.kin
 
             # calculate target
-            target = (np.array(ag.orient) + np.array(index)) % self.dim
+            target = tuple((np.array(index) + ag.orient) % self.dim)
             target_cell = self.env[target]
 
             if ag.food_reserve > self.metabolism[kin]['exhaust']:
@@ -1466,8 +1469,8 @@ class GridOrientedPPM(Environment):
     def reset(self) -> None:
         """Reset the environment."""
         # clear the sets
-        self._agents_tuple.Predator.clear()
-        self._agents_tuple.Prey.clear()
+        self._agents_tuple.OrientedPredator.clear()
+        self._agents_tuple.OrientedPrey.clear()
         self._agents_set.clear()
 
         # empty Environment
@@ -1483,10 +1486,10 @@ class GridOrientedPPM(Environment):
         self.eaten_prey.clear()
 
         # clear history
-        self.history.Predator.clear()
-        self.history.Prey.clear()
+        self.history.OrientedPredator.clear()
+        self.history.OrientedPrey.clear()
 
-        print(": Environment reset complete...")
+        print(": [env] Reset complete...")
 
         # pop list and return state
         # index = self.shuffled_agent_list.pop()
@@ -1557,7 +1560,7 @@ class GridOrientedPPM(Environment):
 
             kin = ag.kin  # it's needed multiple times later
 
-            ag.food_reserve -= ag.metabolism['fast']  # reduce food reserve
+            ag.food_reserve -= self.metabolism[kin]['fast']  # reduce food reserve
             state = self.index_to_state(index=index)  # get state
 
             # TODO: check if this part is needed. -------------------------
@@ -1633,7 +1636,9 @@ class GridOrientedPPM(Environment):
             ag = self.env[idc]
             plotarray[idc] = self._ag_to_int(ag=ag)
             orients[i] = ag.orient  # get agent orientation
+        orients = np.roll(orients, shift=1, axis=1)
         orients = orients.T  # transpose
+        orients[1] = orients[1] * -1  # quiver is stupid...
 
         fig = plt.figure(figsize=params['figsize'])
         ax = fig.add_subplot(111)  # lets just leave this like this..
@@ -1648,7 +1653,7 @@ class GridOrientedPPM(Environment):
 
         cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
                             ticks=[-1, 1])
-        cbar.ax.set_yticklabels(self._kins)
+        cbar.ax.set_yticklabels(self._kins, rotation=90)
 
         # cleanup
         ax.set_xticklabels([])
@@ -1656,8 +1661,9 @@ class GridOrientedPPM(Environment):
         ax.set_xticks([])
         ax.set_yticks([])
 
-        info = " Pred: {}, Prey: {}".format(len(self._agents_tuple.Predator),
-                                            len(self._agents_tuple.Prey))
+        N_agents = [len(species) for species in self._agents_tuple]
+
+        info = " Pred: {}, Prey: {}".format(*N_agents)
 
         ax.set_title("Episode {}, Timestep {} |".format(episode, timestep) +
                      info)
