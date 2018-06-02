@@ -7,7 +7,7 @@
 #       giving birth}
 Model:
     dim:                  !!python/tuple [16, 16]  # dimensionality
-    densities:            !!python/tuple [0.01, 0.01]  # Predator, Prey
+    densities:            !!python/tuple [0.2, 0.35]  # Predator, Prey
     food_reserve:         3
     max_food_reserve:     8
     metabolism:  # see description!
@@ -16,11 +16,12 @@ Model:
         satiety:          3  # get for eating
         exhaust:          3  # for mating
       OrientedPrey:
-        fast:             1
+        fast:             0.5
         satiety:          2
         exhaust:          3
+    view:                 !!python/tuple [7, 7]  # supersedes neighbourhood
     generation:           0
-    neighbourhood:        49  # only squares of odd numbers, e.g. 9, 25, 49
+    # neighbourhood:        49  # only squares of odd numbers, e.g. 9, 25, 49
     p_breed:              1.0
     p_flee:               0.0
     p_eat:                1.0  # = 1-p_flee
