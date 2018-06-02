@@ -191,9 +191,9 @@ class Agent:
         if not isinstance(kin, str):
             raise TypeError("kin must be of type str, but {} was given."
                             "".format(type(kin)))
-        elif self.kin:
-            raise RuntimeError("kin is alreday set and cannot be changed on the"
-                               " fly.")
+        # elif self.kin:
+        #     raise RuntimeError("kin is alreday set and cannot be changed on the"
+        #                       " fly.")
 
         else:
             self._kin = kin
@@ -345,8 +345,9 @@ class Prey(Agent):
         self._p_flee = 0.0
         self._got_eaten = False
 
-        # set new (property managed) attributes
-        self.p_flee = p_flee
+        if p_flee is not None:
+            # set new (property managed) attributes
+            self.p_flee = p_flee
 
     # magic method ------------------------------------------------------------
     def __str__(self) -> str:
@@ -422,13 +423,13 @@ class OrientedPredator(Predator):
                  max_food_reserve: Union[int, float]=None, p_eat: float=1.0,
                  generation: int=None, orient: tuple=None, **kwargs):
         """Initialze a OrientedPredator instance."""
-        super(Predator, self).__init__(food_reserve=food_reserve,
-                                       max_food_reserve=max_food_reserve,
-                                       generation=generation,
-                                       p_breed=p_breed,
-                                       p_eat=p_eat,
-                                       kin=self.__class__.__name__,
-                                       **kwargs)
+        super().__init__(food_reserve=food_reserve,
+                         max_food_reserve=max_food_reserve,
+                         generation=generation,
+                         p_breed=p_breed,
+                         p_eat=p_eat,
+                         # kin=self.__class__.__name__,
+                         **kwargs)
 
         # initialize new attributes
         self._orient = (0, 0)
@@ -437,7 +438,14 @@ class OrientedPredator(Predator):
         self.orient = orient
 
     # magic method ------------------------------------------------------------
-    # tbd
+    def __str__(self) -> str:
+        """Return the agents properties."""
+        props = ("Kin: {}\tgen: {}\tfood_res: {}\t"
+                 "max_food_res: {}\t p_eat: {}\t orient: {}"
+                 "".format(self.kin, self.generation, self.food_reserve,
+                           self.max_food_reserve, self.p_eat, self.orient))
+
+        return props
 
     # properties --------------------------------------------------------------
     @property
@@ -492,13 +500,13 @@ class OrientedPrey(Prey):
                  max_food_reserve: Union[int, float]=None, p_flee: float=0.0,
                  generation: int=None, orient: tuple=None, **kwargs):
         """Initialze a OrientedPredator instance."""
-        super(Prey, self).__init__(food_reserve=food_reserve,
-                                   max_food_reserve=max_food_reserve,
-                                   generation=generation,
-                                   p_breed=p_breed,
-                                   p_flee=p_flee,
-                                   kin=self.__class__.__name__,
-                                   **kwargs)
+        super().__init__(food_reserve=food_reserve,
+                         max_food_reserve=max_food_reserve,
+                         generation=generation,
+                         p_breed=p_breed,
+                         p_flee=p_flee,
+                         # kin=self.__class__.__name__,
+                         **kwargs)
 
         # initialize new attributes
         self._orient = (0, 0)
@@ -507,7 +515,14 @@ class OrientedPrey(Prey):
         self.orient = orient
 
     # magic method ------------------------------------------------------------
-    # tbd
+    def __str__(self) -> str:
+        """Return the agents properties."""
+        props = ("Kin: {}\tgen: {}\tfood_res: {}\t"
+                 "max_food_res: {}\t p_flee: {}\t orient: {}"
+                 "".format(self.kin, self.generation, self.food_reserve,
+                           self.max_food_reserve, self.p_flee, self.orient))
+
+        return props
 
     # properties --------------------------------------------------------------
     @property
