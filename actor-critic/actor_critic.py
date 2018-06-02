@@ -50,7 +50,7 @@ def init(*, mode: str='cpu', goal: str="training", policy_kind: str="fc"):
 
 
 # instance of namedtuple to be used in policy
-SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+SavedAction = namedtuple('SavedAction', ['log_prob', 'value', 'action_nr'])
 
 
 class ConvPolicy(nn.Module):
@@ -164,7 +164,7 @@ def select_action(*, model, agent, state) -> float:
     action = cat_dist.sample()  # I think I should e-greedy right at this point
     if train:
         agent.memory.Actions.append(SavedAction(cat_dist.log_prob(action),
-                                                state_value))
+                                                state_value, action.item()))
     return action.item()  # just output a number and not additionally the type
 
 
@@ -177,6 +177,8 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
     eps = Tensor([np.finfo(np.float32).eps])  # machine epsilon
     losses = deque()
     returns_to_average = deque()
+    species_actions = deque()  # init
+    actions_per_agent = deque()  # init
     for (_, agent_rewards, saved_actions) in history:
 
         R = 0  # The discounted reward
@@ -201,13 +203,17 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
         # converting NaNs to 0.
         rewards[rewards != rewards] = 0  # should convert all NaN to 0
 
+        actions_per_agent.clear()  # clear the deque
         # now interate over all probability-state value-reward pairs
-        for (log_prob, state_value), r in zip(saved_actions, rewards):
+        for (log_prob, state_value, action), r in zip(saved_actions, rewards):
+            actions_per_agent.append(action)  # save action for later
             reward = r - state_value.item()  # get the value, needs `Variable`
             policy_losses.append(-log_prob * reward)
             # calculate the (smooth) L^1 loss = least absolute deviation
             state_value_losses.append(F.smooth_l1_loss(state_value,
                                       Variable(torch.Tensor([r]).type(dtype))))
+
+        species_actions.append(actions_per_agent.copy())
 
         # empty the gradient of the optimizer
         optimizer.zero_grad()
@@ -229,7 +235,7 @@ def finish_episode(*, model, optimizer, history, gamma: float=0.1,
     if return_means:
         ret_avg = np.mean(returns_to_average)
         returns_to_average.clear()
-        return loss, ret_avg
+        return loss, ret_avg, species_actions.copy()
 
 
 # saving function

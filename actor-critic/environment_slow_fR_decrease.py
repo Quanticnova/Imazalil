@@ -12,7 +12,6 @@ from gym.utils import seeding
 from tools import type_check, timestamp, function_call_counter
 
 hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
-orientedHistory = namedtuple('history', ('OrientedPredator', 'OrientedPrey'))
 
 
 def init(*, goal: str="training", policy_kind: str="conv"):
@@ -57,7 +56,7 @@ class Environment:
 
     # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
-                 densities: Union[float, tuple], history: NamedTuple=None,
+                 densities: Union[float, tuple], history: tuple=None,
                  **agent_kwargs: Union[int, float, None]):
         """Initialize the environment.
 
@@ -327,31 +326,31 @@ class GridPPM(Environment):
 
         # setup of the action ACTION_LOOKUP
         self.action_lookup = {  # 0: self.move('LU'),
-                              0: self.move('D'),
+                              0: self.move('U'),
                               # 2: self.move('RU'),
                               1: self.move('L'),
                               2: self.move(''),
                               3: self.move('R'),
                               # 6: self.move('LD'),
-                              4: self.move('U'),
+                              4: self.move('D'),
                               # 8: self.move('RD'),
                               # 9: self.eat('LU'),
-                              5: self.eat('D'),
+                              5: self.eat('U'),
                               # 11: self.eat('RU'),
                               6: self.eat('L'),
                               7: self.eat(''),
                               8: self.eat('R'),
                               # 15: self.eat('LD'),
-                              9: self.eat('U'),
+                              9: self.eat('D'),
                               # 17: self.eat('RD'),
                               # 18: self.eat('LU'),
-                              10: self.procreate('D'),
+                              10: self.procreate('U'),
                               # 20: self.procreate('RU'),
                               11: self.procreate('L'),
                               12: self.procreate(''),
                               13: self.procreate('R'),
                               # 24: self.procreate('LD'),
-                              14: self.procreate('U'),
+                              14: self.procreate('D'),
                               # 26: self.procreate('RD')
                               }
 
@@ -411,9 +410,9 @@ class GridPPM(Environment):
         if not dirs:
             return np.array([y, x])
         else:  # first Y, then X coordinate
-            if "U" in dirs:
-                y -= 1
             if "D" in dirs:
+                y -= 1
+            if "U" in dirs:
                 y += 1
             if "L" in dirs:
                 x -= 1
@@ -445,7 +444,7 @@ class GridPPM(Environment):
         # num_agents. The second for loop manages the right intervals of the
         # shuffled indices.
         for i, (num, at) in enumerate(zip(num_agents, self.agent_types)):
-            for _ in idx[sum(num_agents[:i]): sum(num_agents[:i+1])]:
+            for _ in idx[sum(num_agents[:i]) : sum(num_agents[:i+1])]:
                 name = at.__name__
                 a = at(**self.agent_kwargs)  # create new agent isinstance
                 self.env[_] = a  # add the agent to the environment
@@ -523,7 +522,7 @@ class GridPPM(Environment):
     # create shuffled list of agents
     def create_shuffled_agent_list(self) -> list:
         """Return a shuffled deque of (y,x) index arrays where the agents (at deque creation time) are."""
-        # Pylama is stupid and doesn't allow pep8 syntax like "env is not None"
+        # numpy is stupid and doesn't allow pep8 syntax like "env is not None"
         y, x = np.where(self.env != None)  # get indices
         agent_list = deque(i for i in zip(y, x))  # create deque
         np.random.shuffle(agent_list)
@@ -704,6 +703,12 @@ class GridPPM(Environment):
             # fetch agent
             agent = self.env[index]
 
+            if type(agent) not in self.agent_types:
+                raise RuntimeError("The current agent {} of kintype {} is not "
+                                   "in the list agent_types. This should not "
+                                   "have happened!".format(agent.uuid,
+                                                           agent.kin))
+
             # now we have to check if target is eatable or if there is
             # space to move to
             delta = self._target_to_value(target)
@@ -854,7 +859,7 @@ class GridPPM(Environment):
         reward = 0  # initialize reward
         instadeath = False
         # reduce food_reserve
-        agent.food_reserve -= 1 if self.agent_kwargs['mortality'] else 0
+        agent.food_reserve -= 0.25 if self.agent_kwargs['mortality'] else 0
 
         # check whether this is the final action or not
         final_action = False if len(self.shuffled_agent_list) != 0 else True
@@ -893,7 +898,7 @@ class GridPPM(Environment):
             agent.memory.Rewards.append(reward)
 
         # check if one species died out and if so, save history of living agents
-        if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) == 0:
+        if (len(self._agents_tuple.Predator) and len(self._agents_tuple.Prey)) is 0:
             done = True  # at least one species died out
 
             # since the episode is now finished, append the rest of the agents'
@@ -962,57 +967,40 @@ class GridPPM(Environment):
 
 
 # -------------------------------------------------------------------------
-class GridOrientedPPM(Environment):
+class GridPPM_simple(Environment):
     """Again a docstring.
 
     The config file for this kind of environment should look a little bit different. The size of the viewing grid should be specified directly.
     """
 
-    REWARDS = {"wrong_action": -3,
-               "default_prey": 1,
-               "default_predator": 1,
-               "succesful_predator": 5,
+    REWARDS = {"wrong_action": -1,
+               "default_prey": 0,
+               "default_predator": 0,
+               "succesful_predator": 15,
                "offspring": 20,
-               "death_starvation": -5,
-               "death_prey": -10,
-               "indifferent": 0,
-               "default": 1,
+               "default": 0,
                "instadeath": 0}
 
-    KIN_LOOKUP = {"Predator": -1, "Prey": 1, "OrientedPredator": -1,
-                  "OrientedPrey": 1}
+    KIN_LOOKUP = {"Predator": -1, "Prey": 1}
 
-    # rotation matrices for the possible directions
-    # since our indices are (Y, X) the coordinate system is left handed.
-    TURNS = {'left': np.array([[0, 1], [-1, 0]]),
-             'right': np.array([[0, -1], [1, 0]]),
-             'around': np.array([[-1, 0], [0, -1]])}
-
-    # slots -------------------------------------------------------------------
     __slots__ = ['action_lookup', 'shuffled_agent_list', 'state',
-                 'eaten_prey', '_view', '_bounds', '_metabolism', '_kins']
+                 'eaten_prey']
 
-    # init --------------------------------------------------------------------
     def __init__(self, *, dim: tuple, agent_types: Union[Callable, tuple],
-                 densities: Union[float, tuple], metabolism: dict,
-                 rewards: dict=None, view: tuple=(7, 7),
-                 **agent_kwargs: Union[int, float, None]):
+                 densities: Union[float, tuple], rewards: dict=None,
+                 view: tuple=(7, 7), **agent_kwargs: Union[int, float, None]):
         """Initialise the grid."""
         # call parent init function
         super().__init__(dim=dim, agent_types=agent_types, densities=densities,
-                         history=orientedHistory(deque(), deque()),  # empty history
                          **agent_kwargs)
-        print(self.agent_kwargs)
+
         # initialize empty environment
         self._env = np.empty(self.max_pop, dtype=object)
 
         # initialize other variables
         self.shuffled_agent_list = None
         self.state = None
-        self._view = None
-        self._kins = []  # set by populate
-        self._bounds = ()  # is filled once by setting view
-        self._metabolism = {}  # this is set in the environment, since its the same for all agents of a species
+        self.view = None
         self.eaten_prey = deque()
 
         # populate the grid + initial shuffled agent list
@@ -1021,9 +1009,6 @@ class GridOrientedPPM(Environment):
 
         # view
         self.view = view
-
-        # Metabolism
-        self.metabolism = metabolism
 
         # update the rewards
         if rewards is not None:
@@ -1041,14 +1026,8 @@ class GridOrientedPPM(Environment):
                                 " {} was given.".format(type(rewards)))
 
         # setup of the action ACTION_LOOKUP
-        self.action_lookup = {0: self.turn("left"),
-                              1: self.turn("right"),
-                              2: self.turn("around"),
-                              3: self.move(stand_still=True),
-                              4: self.move(),
-                              5: self.eat(stand_still=True),
-                              6: self.eat(),
-                              7: self.procreate()}
+        self.action_lookup = {  # TODO: Do me!
+                              }
 
     # properties --------------------------------------------------------------
     # env
@@ -1071,7 +1050,7 @@ class GridOrientedPPM(Environment):
     @property
     def view(self) -> tuple:
         """Return the agents' view of the grid as (X, Y) tuple."""
-        return self._view
+        return self.view
 
     @view.setter
     def view(self, view: tuple) -> None:
@@ -1081,594 +1060,4 @@ class GridOrientedPPM(Environment):
                             "".format(type(view)))
 
         else:
-            self._view = view
-
-            # set the _bounds list
-            view = np.array(view)
-            lower_bound = -np.floor(view/2)  # mind the minus
-            upper_bound = np.ceil(view/2)
-            bounds = np.stack([lower_bound, upper_bound])  # stack of bounds
-            center = np.array(self.dim)//2  # more or less the center
-            # this only is problematic, if the grid is smaller than the viewing range
-            centered_bounds = (center + bounds).T.astype(int)  # if array is rolled, these are the bounds to use for slicing
-            self._bounds = (bounds, center, centered_bounds)
-
-    # metabolism
-    @property
-    def metabolism(self) -> dict:
-        """Return the metabolism properties of the agents in the environment."""
-        return self._metabolism
-
-    @metabolism.setter
-    def metabolism(self, metabolism: dict) -> None:
-        """Set the metabolism tuple for the environment."""
-        if not isinstance(metabolism, dict):
-            raise TypeError("Metabolism must be of type dict but type {} was"
-                            " given.".format(type(metabolism)))
-
-        elif len(metabolism) != len(self.densities):
-            raise RuntimeError("Dimension mismatch between metabolism ({}) and"
-                               "agent densities ({}).".format(len(metabolism),
-                                                              len(self.densities)))
-
-        elif len(self.metabolism):
-            raise RuntimeError("Metabolism already set to {}."
-                               "".format(self.metabolism))
-
-        elif not all(kin in self._kins for kin in metabolism.keys()):
-            raise RuntimeError("Unknown species found in metabolism: {}\n"
-                               "Known species: {}".format(metabolism.keys(),
-                                                          self.KIN_LOOKUP.keys()))
-
-        else:
-            self._metabolism = metabolism
-
-    # methods -----------------------------------------------------------------
-    # populate
-    def _populate(self) -> None:
-        """Populate the Environment with given agents & values."""
-        # multiply fractions with maximum number of population
-        num_agents = np.array([self.densities]) * self.max_pop
-        num_agents = np.array(num_agents, dtype=int).ravel()  # ensure values
-
-        # consistency check
-        if len(self.agent_types) != len(num_agents):
-            raise RuntimeError("Mismatch of Dimensions - densities and"
-                               " agent_types must have same length, but"
-                               " len(densities) = {} and len(agent_types) = {}"
-                               " were given.".format(len(self.densities),
-                                                     len(self.agent_types)))
-
-        idx = np.arange(self.max_pop)  # generate indices
-        np.random.shuffle(idx)  # shuffle the indices
-
-        # loop over the agent_types, and create as many agents as specified in
-        # num_agents. The second for loop manages the right intervals of the
-        # shuffled indices.
-        self._kins = []  # empty any existing kins
-        for i, (num, at) in enumerate(zip(num_agents, self.agent_types)):
-            for _ in idx[sum(num_agents[:i]): sum(num_agents[:i+1])]:
-                name = at.__name__
-                a = at(**self.agent_kwargs)  # create new agent isinstance
-                self.env[_] = a  # add the agent to the environment
-                getattr(self._agents_tuple, name).add(a)
-                self._agents_set.add(a)
-            self._kins.append(name)
-
-        self.env = self.env.reshape(self.dim)
-
-    # dying
-    def _die(self, index: tuple) -> None:
-        """Delete the given agent from the environment and replace its position with None."""
-        ag = self.env[index]
-        if ag is not None:
-            if ag.memory.Rewards and training:
-                # record history in the right list
-                getattr(self.history, ag.kin).append(ag.memory)
-
-            self._agents_set.remove(ag)  # only deletes the set entry
-            getattr(self._agents_tuple, ag.kin).remove(ag)  # same as above
-            del ag
-            self.env[index] = None
-
-        else:
-            warnings.warn("Trying to delete an empty cell", RuntimeWarning)
-
-    # add agent to _agents_tuple
-    def _add_to_agents_tuple(self, *, newborn: Callable) -> None:
-        """Add the given agent in the corresponding subtuple dictionary.
-
-        The added agent is then also available in GridPPM._agents_set.
-        """
-        getattr(self._agents_tuple, newborn.kin).add(newborn)
-        self._agents_set.add(newborn)
-
-    # add agent to Environment
-    def add_to_env(self, *, target_index: tuple, newborn: Callable) -> None:
-        """Add the given agent to the environment using target_index.
-
-        The agent is added to the corresponding subtuple dictionary, and to the environment array.
-        """
-        self._add_to_agents_tuple(newborn=newborn)
-        self.env[target_index] = newborn  # we assume that the index is not occupied
-
-    # create shuffled list of agents
-    def create_shuffled_agent_list(self) -> list:
-        """Return a shuffled deque of (y,x) index arrays where the agents (at deque creation time) are."""
-        # Pylama is stupid and doesn't allow pep8 syntax like "env is not None"
-        y, x = np.where(self.env != None)  # get indices
-        agent_list = deque(i for i in zip(y, x))  # create deque
-        np.random.shuffle(agent_list)
-
-        self.shuffled_agent_list = agent_list
-
-    # convert agent to integer
-    def _ag_to_int(self, *, ag: Callable) -> int:
-        """Return a integer representation of the agent.
-
-        Predator         == -1
-        Prey             ==  1
-        ''               ==  0
-        OrientedPredator == -1
-        OrientedPrey     ==  1
-        """
-        if ag is not None:
-            return self.KIN_LOOKUP[ag.kin]  # if agent, then set value
-
-        else:
-            return 0
-
-    # a mapping from index to state
-    def index_to_state(self, *, index: tuple, ag: Callable=None) -> tuple:
-        """Return neighbourhood and food reserve for a given index.
-
-        If agent was prey and got eaten, index points to '' in env. The return for food_reserve is then None.
-        """
-        # it can happen, that the index points to an empty space in the environment. This is due to the fact, that an index in the shuffled list doesn't get removed, if a prey got eaten. thus, empty cells are just ignored.
-        state = []
-        if ag is not None:  # if ag is additionally set, directly get state
-            # this condition is fulfilled, if an agent gets eaten, because then
-            # the agent option is explicitely set
-            if ag.memory.States:  # check if agent has memory
-                state = ag.memory.States[-1]  # directly return state
-                return state
-
-            else:  # if agent has no memory, create state
-                neighbourhood = self.neighbourhood(index=index)
-                if conv:  # if convolutional input layer, take care of shape
-                    shape = neighbourhood.shape
-                    neighbourhood = neighbourhood.ravel()
-
-                state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
-
-                if conv:  # if conv input layer, type of container for states is important!
-                    state = np.array(state).reshape(shape)
-                    state = [state, np.array([ag.food_reserve])]  # got handed an agent
-                    return state
-                else:
-                    state.append(ag.food_reserve)
-                    return np.array(state)
-
-        else:
-            active_agent = self.env[index]
-            neighbourhood = self.neighbourhood(index=index)
-            if conv:
-                shape = neighbourhood.shape
-                neighbourhood = neighbourhood.ravel()
-
-            state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
-
-            if conv:
-                state = np.array(state).reshape(shape)
-                state = [state, np.array([active_agent.food_reserve])]  # active agent
-                return state
-            else:
-                state.append(active_agent.food_reserve)
-                return np.array(state)
-
-    # neighbourhood
-    def neighbourhood(self, index: tuple) -> np.array:
-        """Return the neighbourhood specified in simulation config.
-
-        Edge cases need to be handled separately.
-        """
-        # get const values
-        bounds, center, centered_bounds = self._bounds
-
-        # calculate the bounds shaped accordingly to [[y_low, y_up], [x_low, x_up]]
-        shaped_bounds = np.array(2*index).reshape(bounds.shape) + bounds
-        shaped_bounds = shaped_bounds.T.astype(int)  # ensure type int
-
-        if np.any(shaped_bounds < 0) or np.any(shaped_bounds > self.dim):
-            # edge case
-            ybounds, xbounds = centered_bounds
-            diff = center - np.array(index)  # difference vector to center
-
-            # recenter array at idc and slice
-            nbh = np.roll(self.env, diff, axis=(0, 1))[slice(*ybounds),
-                                                       slice(*xbounds)]
-        else:
-            ybounds, xbounds = shaped_bounds
-
-            nbh = self.env[slice(*ybounds), slice(*xbounds)]  # just slice
-
-        if conv:
-            return nbh
-
-        else:  # if no conv input layer is set, the nbh needs to be flattened
-            return nbh.ravel()
-
-    # rotate agent
-    def turn(self, where: str) -> Callable:
-        """Return a functional that turns the agents direction."""
-        def turn_agent(index: tuple) -> int:
-            """Turn the agent at index in the given direction.
-
-            Possible directions are: 'left', 'right' & 'around'. Other
-            directions raise errors.
-            """
-            if where not in self.TURNS.keys():
-                raise RuntimeError("Unknown turn direction '{}' was given."
-                                   "".format(where))
-
-            else:
-                ag = self.env[index]
-                ag.orient = tuple(self.TURNS[where].dot(ag.orient).astype(int))
-                return self.REWARDS['indifferent']
-
-        return turn_agent
-
-    # move
-    def move(self, stand_still=False) -> Callable:
-        """Return a functional that, when called, moves the agent in direction of orientation."""
-        def move_agent(index: tuple) -> int:
-            """Move the agent.
-
-            If stand_still is set, the agent isn't moved at all. Otherwise
-            the agent is moved (or at least tries to move) in direction of its
-            orientation.
-            """
-            if stand_still:
-                return self.REWARDS['indifferent']  # do nothing
-
-            else:
-                # get agent
-                ag = self.env[index]
-
-                # get target index
-                target_index = tuple((np.array(index) + ag.orient) % self.dim)
-
-                if self.env[target_index] is not None:
-                    return self.REWARDS['wrong_action']
-
-                else:
-                    self.env[target_index] = self.env[index]  # move
-                    self.env[index] = None  # clear old position
-                    return self.REWARDS['default']  # TODO: rename rewards
-
-        return move_agent
-
-    # eating helper funcion
-    def _hunting(self, *, predator: Callable, target_cell: tuple, kin: str,
-                 target_agent: Callable, agent_index: tuple) -> int:
-        """I help to keep the eat method not too complex and more clean."""
-        if predator.p_eat < 1.0:
-            roll = rd.random()
-            if roll > predator.p_eat:
-                return self.REWARDS['default_predator']
-
-        predator.food_reserve += self.metabolism[kin]['satiety']
-        self.eaten_prey.append((target_cell, target_agent))
-        target_agent.got_eaten = True  # Preys have this prop
-        self._die(target_cell)
-        self.move()(agent_index)
-        return self.REWARDS['succesful_predator']
-
-    # eating
-    def eat(self, stand_still=False) -> Callable:
-        """Return a functional that, when called, lets an agent try to eat."""
-        def eat_and_move(index: tuple) -> int:
-            """Agent eats (or tries to eat) the cell in its orientation.
-
-            If stand_still is set (only possible for preys), the agent doesn't
-            move and eats in its cell.
-            """
-            # get agent
-            ag = self.env[index]
-            kin = ag.kin
-
-            if not stand_still:
-                # calculate target
-                target = tuple((np.array(index) + ag.orient) % self.dim)
-                target_cell = self.env[target]
-
-            else:
-                target = None  # no target
-
-            if "Prey" in kin:
-                if target is None:  # just stand around and do nothing
-                    ag.food_reserve += self.metabolism[kin]['satiety']
-                    return self.REWARDS['default_prey']
-
-                else:  # actually move
-                    # target should be calculated if in this branch
-                    if target_cell is None:
-                        self.move()(index)
-                        ag.food_reserve += self.metabolism[kin]['satiety']
-                        return self.REWARDS['default_prey']
-
-                    else:
-                        return self.REWARDS['wrong_action']
-
-            elif "Predator" in kin:
-                if stand_still:  # predators can't eat on the spot
-                    return self.REWARDS['wrong_action']
-
-                else:
-                    if target_cell is None:
-                        return self.REWARDS['wrong_action']  # don't eat air
-
-                    elif target_cell.kin in ["Predator", "OrientedPredator"]:
-                        # don't eat thy own specimen
-                        return self.REWARDS['wrong_action']
-
-                    else:  # actually try to eat
-                        reward = self._hunting(predator=ag, agent_index=index,
-                                               kin=kin, target_cell=target, target_agent=target_cell)
-                        return reward
-
-            else:
-                raise RuntimeError("encountered unknown species of type {} but"
-                                   " either Prey or Predator was expected! This"
-                                   " should not have happened!"
-                                   "".format(kin))
-
-        return eat_and_move
-
-    # procreating
-    def procreate(self) -> Callable:
-        """Return a functional that, when called, creates offspring."""
-        def procreate_forward(index: tuple) -> int:
-            """Agent at index tries to procreate in its orientation."""
-            ag = self.env[index]  # get index
-            kin = ag.kin
-
-            # calculate target
-            target = tuple((np.array(index) + ag.orient) % self.dim)
-            target_cell = self.env[target]
-
-            if ag.food_reserve > self.metabolism[kin]['exhaust']:
-                if target_cell is not None:
-                    # target cell is not empty
-                    return self.REWARDS['wrong_action']
-
-                else:
-                    # try to breed
-                    if ag.p_breed < 1.0:
-                        roll = rd.random()
-                        if roll > ag.p_breed:
-                            if "Prey" in kin:
-                                return self.REWARDS['default_prey']
-
-                            else:
-                                return self.REWARDS['default_predator']
-
-                    exhaust = self.metabolism[kin]['exhaust']
-                    newborn = ag.procreate(food_reserve=exhaust)
-                    self.add_to_env(target_index=target, newborn=newborn)
-                    ag.food_reserve -= exhaust
-                    return self.REWARDS['offspring']
-
-            else:
-                # don't try to eat without enough food food_reserve
-                return self.REWARDS['wrong_action']
-
-        return procreate_forward
-
-    # methods for actor-critic --------------------------------------------
-    def reset(self) -> None:
-        """Reset the environment."""
-        # clear the sets
-        self._agents_tuple.OrientedPredator.clear()
-        self._agents_tuple.OrientedPrey.clear()
-        self._agents_set.clear()
-
-        # empty Environment
-        self._env = np.empty(self.max_pop, dtype=object)
-
-        # populate the grid and agent dicts
-        self._populate()
-
-        # create new shuffled agents list
-        self.create_shuffled_agent_list()
-
-        # clear eaten prey list
-        self.eaten_prey.clear()
-
-        # clear history
-        self.history.OrientedPredator.clear()
-        self.history.OrientedPrey.clear()
-
-        print(": [env] Reset complete...")
-
-        # pop list and return state
-        # index = self.shuffled_agent_list.pop()
-        # self.state = self.index_to_state(index=index)
-
-        # return self.state, index
-
-    def step(self, *, policy: dict, select_action: Callable) -> tuple:
-        """Take a step in the environment.
-
-        policy should be a dictionary of all used policies, with the agent
-        kin type as key and actual policy model as value.
-
-        select_action is a functional that takes the model, agent and state
-        and returns the "optimal" action for the given state (with a small
-        probability for a different action).
-        """
-        # check, if any species died out:
-        done = any([len(kin) == 0 for kin in self._agents_tuple])
-        reward = 0  # initial
-
-        # first check if any prey got eaten +++++++++++++++++++++++++++++++
-        if len(self.eaten_prey) > 0:
-            index, ag = self.eaten_prey.pop()
-            state = self.index_to_state(index=index, ag=ag)
-
-            if index in self.shuffled_agent_list:  # cleanup
-                self.shuffled_agent_list.remove(index)
-
-            # TODO: check if this part is needed. -------------------------
-            if state[-1] is None:
-                warnings.warn("food reserve in state was None.", RuntimeWarning)
-                state[-1] = int(ag.food_reserve)
-            # -------------------------------------------------------------
-
-            # actual NN magic happening here
-            model = policy[ag.kin]
-            action = select_action(model=model, agent=ag, state=state)
-
-            # since we're already in the branch for eaten prey, no need to
-            # check for the eaten_prey attribute actually
-            reward = self.REWARDS['death_prey']
-
-            if training:
-                ag.memory.Rewards.append(reward)
-
-            return reward, state, done
-
-        # regular step ++++++++++++++++++++++++++++++++++++++++++++++++++++
-        elif len(self.shuffled_agent_list) > 0:
-            # get next agent
-            index = self.shuffled_agent_list.pop()
-            ag = self.env[index]
-
-            # this part is again for checking: ----------------------------
-            while(ag is None):
-                warnings.warn("Popped an empty cell from agent list."
-                              " This should not have happende!",
-                              RuntimeWarning)
-                try:
-                    index = self.shuffled_agent_list.pop()
-                    ag = self.env[index]
-                except IndexError:  # happens when list is empty
-                    # list is empty, return some values, but next timestep
-                    # will come soon!
-                    return 0, 0, done
-            # -------------------------------------------------------------
-
-            kin = ag.kin  # it's needed multiple times later
-
-            ag.food_reserve -= self.metabolism[kin]['fast']  # reduce food reserve
-            state = self.index_to_state(index=index)  # get state
-
-            # TODO: check if this part is needed. -------------------------
-            if state[-1] is None:
-                warnings.warn("food reserve in state was None.", RuntimeWarning)
-                state[-1] = int(ag.food_reserve)
-            # -------------------------------------------------------------
-
-            # if mortality is set, then check if agent starved and if,
-            # let it die and return reward, state, done
-            if self.agent_kwargs['mortality'] and (ag.food_reserve <= 0):
-                self._die(index=index)
-                reward = self.REWARDS['death_starvation']  # more death!
-                # save the reward
-                if training:
-                    ag.memory.Rewards.append(reward)
-
-                return reward, state, done
-
-            # check for statistical death of predators
-            # sorry dear reader for the long if statement
-            instadeath = self.agent_kwargs['instadeath']
-            kin_tuple = getattr(self._agents_tuple, kin)
-            if (instadeath > 0) and ("Predator" in kin) and (len(kin_tuple) > 1):
-                death_roll = rd.random()  # roll for your life!
-                if death_roll <= instadeath:
-                    self._die(index=index)
-                    reward = self.REWARDS['instadeath']
-                    # save the reward
-                    if training:
-                        ag.memory.Rewards.append(reward)
-
-                    return reward, state, done
-
-            # if step continued this far, then act regularly
-            # again, actual NN magic happening here
-            model = policy[kin]  # get policy depending on agent type
-            action = select_action(model=model, agent=ag, state=state)
-            act = self.action_lookup[action]  # select action
-            reward = act(index=index)  # act and get reward
-            # save the reward
-            if training:
-                ag.memory.Rewards.append(reward)
-
-            # TODO: remove this part since its just here for checking ---------
-            if reward is None:
-                raise RuntimeError("reward should not be of type None! The"
-                                   " last action was {} by agent {}"
-                                   "".format(act, ag))
-            # -----------------------------------------------------------------
-
-            if done and training:
-                # the episode is finished, append the rest of the agents'
-                # memories to the environments history
-                for ag in self._agents_set:
-                    if ag.memory.Rewards:  # if agent actually has memory
-                        getattr(self.history, ag.kin).append(ag.memory)
-
-            return reward, state, done
-
-        else:
-            warnings.warn("This branch should actually never be reached."
-                          " Check your code again!", RuntimeWarning)
-
-    # rendering
-    def render(self, *, episode: int, timestep: int, params: dict):
-        """Visualize the current timestep."""
-        plotarray = np.zeros(shape=np.shape(self.env))  # initialize
-        y, x = np.where(self.env != None)  # find indices
-
-        orients = np.zeros(shape=(len(y), 2))  # allocate space
-        for i, idc in enumerate(zip(y, x)):
-            ag = self.env[idc]
-            plotarray[idc] = self._ag_to_int(ag=ag)
-            orients[i] = ag.orient  # get agent orientation
-        orients = np.roll(orients, shift=1, axis=1)
-        orients = orients.T  # transpose
-        orients[1] = orients[1] * -1  # quiver is stupid...
-
-        fig = plt.figure(figsize=params['figsize'])
-        ax = fig.add_subplot(111)  # lets just leave this like this..
-
-        # population
-        im = ax.imshow(ma.masked_equal(plotarray, 0), cmap=params['cmap'],
-                       vmin=-1, vmax=1)
-
-        # orientation
-        ax.quiver(x, y, *orients, color=params['arrowcolor'],
-                  pivot='middle')
-
-        cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
-                            ticks=[-1, 1])
-        cbar.ax.set_yticklabels(self._kins, rotation=90)
-
-        # cleanup
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-        N_agents = [len(species) for species in self._agents_tuple]
-
-        info = " Pred: {}, Prey: {}".format(*N_agents)
-
-        ax.set_title("Episode {}, Timestep {} |".format(episode, timestep) +
-                     info)
-
-        filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, timestep)
-        fig.savefig(params['filepath'] + filename, dpi=params['dpi'],
-                    format=params['fmt'])
-        plt.close(fig)
+            self.view = view

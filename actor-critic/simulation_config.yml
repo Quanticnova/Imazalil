@@ -1,9 +1,24 @@
 # configuration file for the actor-critic PPM
+# DESCRIPTION -----------------------------------------------------------------
+# - metabolism: a dict introduced with the GridOrientedPPM Model. It contains
+#       a dict for each species in the model (in the same order as in
+#       densities). The dict contents are: {Amount of food_reserve reduced
+#       per timestep, amount of fr gained from eating, amount of fr lost due to
+#       giving birth}
 Model:
     dim:                  !!python/tuple [10, 10]  # dimensionality
     densities:            !!python/tuple [0.01, 0.01]  # Predator, Prey
     food_reserve:         0
-    # max_food_reserve:     8
+    max_food_reserve:     8
+    metabolism:  # see description!
+      OrientedPredator:
+        fast:           0.25  # decrease every timestep
+        satiety:        3  # get for eating
+        exhaust:        3  # for mating
+      OrientedPrey:
+        fast:           1
+        satiety:        2
+        exhaust:        3
     generation:           0
     neighbourhood:        49  # only squares of odd numbers, e.g. 9, 25, 49
     p_breed:              0.4
