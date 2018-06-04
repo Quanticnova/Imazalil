@@ -77,11 +77,18 @@ class ConvPolicy(nn.Module):
 
     def forward(self, input_data: tuple) -> tuple:
         """Forward the given input image."""
-        image, foodreserve = input_data  # we assume this structure
+        image, add_info = input_data  # we assume this structure
+
+        # propagation through first layer
         process = F.relu(self.conv1(image))  # has now conv dims
-        foodres = F.relu(self.affine1(foodreserve))
+        add_info = F.relu(self.affine1(add_info))
+
+        # flattening the outputs and concatenating to  a single tensor
         process = process.view(process.size(0), -1)  # flatten the tensor
-        process = torch.cat([process[0], foodres], -1)  # concatenate layers
+        add_info = add_info.view(add_info.size(0), -1)  # flatten
+        process = torch.cat([process[0], add_info[0]], -1)  # concatenate layers
+
+        # further propagation
         process = F.relu(self.hidden1(process))
         process = F.relu(self.hidden2(process))
         process = F.relu(self.hidden3(process))
