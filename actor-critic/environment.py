@@ -984,8 +984,11 @@ class GridOrientedPPM(Environment):
 
     # rotation matrices for the possible directions
     # since our indices are (Y, X) the coordinate system is left handed.
-    TURNS = {'left': np.array([[0, 1], [-1, 0]]),
-             'right': np.array([[0, -1], [1, 0]]),
+    # turns out (pun intended), that if you change the sign of 'left' and
+    # 'right' but leave the multiplication order unchanged, then this also works
+    # for a non left handed coordinate system
+    TURNS = {'left': np.array([[0, -1], [1, 0]]),
+             'right': np.array([[0, 1], [-1, 0]]),
              'around': np.array([[-1, 0], [0, -1]])}
 
     # slots -------------------------------------------------------------------
@@ -1218,6 +1221,25 @@ class GridOrientedPPM(Environment):
         else:
             return 0
 
+    def _orient_to_float(self, *, ag: Callable) -> float:
+        """Return a float between 0 and 1 as rep. of the agents' orientation.
+
+        Y   X     float
+        -1  0     0.00  # looking down
+        0   1     0.25  # looking right
+        1   0     0.50  # looking up
+        0   -1    0.75  # looking left
+
+        Of course 0.00 == 1.00.
+        """
+        orient = ag.orient
+        conversion = {(-1, 0): 0.0,
+                      (0, 1): 0.25,
+                      (1, 0): 0.50,
+                      (0, -1): 0.75}
+
+        return conversion[orient]
+
     # a mapping from index to state
     def index_to_state(self, *, index: tuple, ag: Callable=None) -> tuple:
         """Return neighbourhood and food reserve for a given index.
@@ -1240,13 +1262,15 @@ class GridOrientedPPM(Environment):
                     neighbourhood = neighbourhood.ravel()
 
                 state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
+                orient_cw = self._orient_to_float(ag=ag)  # clockwise orient
 
                 if conv:  # if conv input layer, type of container for states is important!
                     state = np.array(state).reshape(shape)
-                    state = [state, np.array([ag.food_reserve])]  # got handed an agent
+                    state = [state, np.array([ag.food_reserve, orient_cw])]  # got handed an agent
                     return state
                 else:
                     state.append(ag.food_reserve)
+                    state.append(orient_cw)
                     return np.array(state)
 
         else:
@@ -1256,14 +1280,18 @@ class GridOrientedPPM(Environment):
                 shape = neighbourhood.shape
                 neighbourhood = neighbourhood.ravel()
 
+            # ag is just a local variable in this list comprehension
             state = [self._ag_to_int(ag=ag) for ag in neighbourhood]
+            orient_cw = self._orient_to_float(ag=active_agent)  # clockwise orient
 
             if conv:
                 state = np.array(state).reshape(shape)
-                state = [state, np.array([active_agent.food_reserve])]  # active agent
+                state = [state, np.array([active_agent.food_reserve,
+                                          orient_cw])]  # active agent
                 return state
             else:
                 state.append(active_agent.food_reserve)
+                state.append(orient_cw)
                 return np.array(state)
 
     # neighbourhood
