@@ -1,0 +1,5 @@
+rcParams:
+  'font.size':              20
+  'text.usetex':            True
+  'text.latex.preamble':    !!python/str '\usepackage{libertine},\usepackage[libertine]{newtxmath},\usepackage{sfmath},\usepackage[T1]{fontenc}'  # if entered as plain string in ipython (e.g.) you need a raw string. pyYAML does some escaping magic while reading
+
