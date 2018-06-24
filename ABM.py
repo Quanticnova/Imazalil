@@ -5,6 +5,7 @@ import numpy.ma as ma
 import matplotlib.pyplot as plt
 import uuid
 import datetime as dt
+import matplotlib as mpl
 
 
 class Agent:
@@ -374,31 +375,39 @@ class Grid:
             densities = list(densities)  # ensure type
 
             # figure setup
-            fig, (ax, axd) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3,1]})
-            w, h = figsize
-            fig.set_figheight(h)
-            fig.set_figwidth(w)
-            fig.subplots_adjust(hspace=0.1)
+            # fig, (ax, axd) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3,1]})
+            # w, h = figsize
+            # fig.set_figheight(h)
+            # fig.set_figwidth(w)
+            # fig.subplots_adjust(hspace=0.1)
+
+            fig_grid = plt.figure(figsize=figsize)
+            ax = fig_grid.add_subplot(111)
+            fig_dens = plt.figure(figsize=(7,5))
+            axd = fig_dens.add_subplot(111)
+
 
             # normalization and timesteps
             maxpop = self.get_max_pop()
             x = np.arange(currenttimestep+2)  # +1 because there is the initial datapoint and because range starts at 0
 
             # colors and labels
-            colors = ['#fde725', '#440154']
-            labels = ['Prey', 'Predator']
+            #colors = ['#fde725', '#440154']
+            colors = ['#1f77b4', '#ff7f0e']
+            labels = [r'$\rho_{\mathrm{Predator}}$', r'$\rho_{\mathrm{Prey}}$']
             # TODO: optional colors and kintypes
 
             # plotting
             for n, d in enumerate(densities):
                 rhod = np.array(d)/maxpop
-                axd.plot(x, rhod, ls='-', color=colors[n], label=labels[n])
+                axd.plot(x, rhod, ls='-', color=colors[n], label=labels[n], linewidth=1)
 
-            axd.set_ylabel('Agent density')
+            axd.set_ylabel('Density')
             axd.set_xlabel('Timesteps')
             axd.set_xlim([0,timesteps])
             axd.set_ylim([0,1])
-            axd.legend(loc=1)
+            axd.legend(loc=1, fontsize=15)
+            fig_dens.tight_layout()
 
         else:
             fig = plt.figure(figsize=figsize)
@@ -406,12 +415,16 @@ class Grid:
 
         # mask array
         masked_plotarr = ma.masked_equal(plotarr, 0)
-        im = ax.imshow(masked_plotarr, cmap='viridis', vmin=-1, vmax=1)
+        colors = ['#1f77b4', 'white', '#ff7f0e']
+        cmap = mpl.colors.ListedColormap(colors)  # create colormap from colors
+        bounds = [-1, 0, 1]
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+        im = ax.imshow(masked_plotarr, cmap=cmap, norm=norm)
 
-        if(colourbar):
-            cbar = plt.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
-                                ticks=[-1, 0, 1], label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
-            cbar.set_yticklabels(['Predator', 'Empty', 'Prey'])
+        # if(colourbar):
+        # cbar = plt.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
+        #                    ticks=[-1, 0, 1], label=r'$\leftarrow \mathrm{Predator\ |\ Prey} \rightarrow$')
+        # cbar.set_yticklabels(['Predator', 'Empty', 'Prey'])
 
         if(not ticks):
             ax.set_xticklabels([])
@@ -423,14 +436,16 @@ class Grid:
 
         if(len(title)):
             title = title + info
-        ax.set_title(title)
+        #ax.set_title(title)
 
         if(len(filepath)):
             save = filepath + filename + "." + fmt
-            fig.savefig(save, dpi=dpi, format=fmt)
+            fig_grid.savefig(save, dpi=dpi, format=fmt)
+            save = filepath + filename + "_density" + "." + fmt
+            fig_dens.savefig(save, dpi=dpi, format=fmt)
 
         if(colourbar):
-            return fig, ax, cbar
+            return ([fig_grid, fig_dens], [ax, axd])
 
         return fig, ax
 
