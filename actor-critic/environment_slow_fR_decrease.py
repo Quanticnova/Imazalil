@@ -5,6 +5,7 @@ import random as rd
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from collections import namedtuple, deque
 from typing import Union, Callable, NamedTuple
 from gym.utils import seeding
@@ -12,6 +13,11 @@ from gym.utils import seeding
 from tools import type_check, timestamp, function_call_counter
 
 hist = namedtuple('history', ('Predator', 'Prey'))  # history of agent memory
+
+ppm_colours = ['#1f77b4', 'white', '#ff7f0e']  # blue, white, orange
+ppm_bounds = [-1, 0, 1]
+ppm_cmap = mpl.colors.ListedColormap(ppm_colours)  # create cmap from colours
+ppm_norm = mpl.colors.BoundaryNorm(ppm_bounds, ppm_cmap.N)
 
 
 def init(*, goal: str="training", policy_kind: str="conv"):
@@ -945,11 +951,11 @@ class GridPPM(Environment):
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
 
-        im = ax.imshow(ma.masked_equal(plotarr, 0), cmap='viridis', vmin=-1,
-                       vmax=1)
-        cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
-                            ticks=[-1, 1])
-        cbar.ax.set_yticklabels(['Predator', 'Prey'])
+        im = ax.imshow(ma.masked_equal(plotarr, 0), cmap=ppm_cmap,
+                       norm=ppm_norm)
+        # cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
+        #                    ticks=[-1, 1])
+        # cbar.ax.set_yticklabels(['Predator', 'Prey'])
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
@@ -959,7 +965,7 @@ class GridPPM(Environment):
         info = " Prey: {}, Pred: {}".format(len(self._agents_tuple.Prey),
                                             len(self._agents_tuple.Predator))
 
-        ax.set_title("Episode: {}, Step: {} |".format(episode, step) + info)
+        # ax.set_title("Episode: {}, Step: {} |".format(episode, step) + info)
 
         filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, step)
         fig.savefig(filepath + filename, dpi=dpi, format=fmt)
