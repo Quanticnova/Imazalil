@@ -967,7 +967,7 @@ class GridPPM(Environment):
 
         # ax.set_title("Episode: {}, Step: {} |".format(episode, step) + info)
 
-        filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, step)
+        filename = "{}_{:0>3}_{:0>3}".format(timestamp(), episode, step)
         fig.savefig(filepath + filename, dpi=dpi, format=fmt)
         plt.close(fig)
 
