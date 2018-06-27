@@ -5,6 +5,7 @@ import random as rd
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from collections import namedtuple, deque
 from typing import Union, Callable, NamedTuple
 from gym.utils import seeding
@@ -1656,6 +1657,13 @@ class GridOrientedPPM(Environment):
     # rendering
     def render(self, *, episode: int, timestep: int, params: dict):
         """Visualize the current timestep."""
+        # initialize color map
+        colours = ['#1f77b4', 'white', '#ff7f0e']  # blue, white, orange
+        bounds = [-1, 0, 1]
+        cmap = mpl.colors.ListedColormap(colours)  # create cmap from colours
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+
+        # plotting
         plotarray = np.zeros(shape=np.shape(self.env))  # initialize
         y, x = np.where(self.env != None)  # find indices
 
@@ -1672,16 +1680,15 @@ class GridOrientedPPM(Environment):
         ax = fig.add_subplot(111)  # lets just leave this like this..
 
         # population
-        im = ax.imshow(ma.masked_equal(plotarray, 0), cmap=params['cmap'],
-                       vmin=-1, vmax=1)
+        im = ax.imshow(ma.masked_equal(plotarray, 0), cmap=cmap, norm=norm)
 
         # orientation
         ax.quiver(x, y, *orients, color=params['arrowcolor'],
                   pivot='middle')
 
-        cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
-                            ticks=[-1, 1])
-        cbar.ax.set_yticklabels(self._kins, rotation=90)
+        # cbar = fig.colorbar(mappable=im, ax=ax, fraction=0.047, pad=0.01,
+        #                    ticks=[-1, 1])
+        # cbar.ax.set_yticklabels(self._kins, rotation=90)
 
         # cleanup
         ax.set_xticklabels([])
@@ -1693,8 +1700,8 @@ class GridOrientedPPM(Environment):
 
         info = " Pred: {}, Prey: {}".format(*N_agents)
 
-        ax.set_title("Episode {}, Timestep {} |".format(episode, timestep) +
-                     info)
+        # ax.set_title("Episode {}, Timestep {} |".format(episode, timestep) +
+        #             info)
 
         fmt = params['fmt']
         filename = "{}_{:0>3}_{:0>3}.".format(timestamp(), episode, timestep)
