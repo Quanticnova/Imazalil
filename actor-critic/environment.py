@@ -1696,7 +1696,9 @@ class GridOrientedPPM(Environment):
         ax.set_title("Episode {}, Timestep {} |".format(episode, timestep) +
                      info)
 
-        filename = "{}_{:0>3}_{:0>3}.png".format(timestamp(), episode, timestep)
+        fmt = params['fmt']
+        filename = "{}_{:0>3}_{:0>3}.".format(timestamp(), episode, timestep)
+        filename += fmt
         fig.savefig(params['filepath'] + filename, dpi=params['dpi'],
                     format=params['fmt'])
         plt.close(fig)
