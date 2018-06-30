@@ -1588,8 +1588,12 @@ class GridOrientedPPM(Environment):
             # -------------------------------------------------------------
 
             kin = ag.kin  # it's needed multiple times later
+            if self.agent_kwargs['mortality']:
+                ag.food_reserve -= self.metabolism[kin]['fast']  # reduce food
 
-            ag.food_reserve -= self.metabolism[kin]['fast']  # reduce food reserve
+            else:
+                ag.food_reserve -= 0  # better be explicit
+                
             state = self.index_to_state(index=index)  # get state
 
             # TODO: check if this part is needed. -------------------------
