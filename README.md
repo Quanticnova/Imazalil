@@ -23,3 +23,18 @@ Important files in *actor-critic* subdirectory:
 - `tools.py`: a collection of tools used for the simulation, like a input check for the internal functions, or a keyboard interrupt handler (very useful :D)
 - `rcParams.yml`: a small file to specify some arguments for matplotlib to make plots look nicer
 - `simulation_config.yml`: the acutal simulation config file. specifies things like gridsize, densities, rewards for the agents, sizes of layer in the NN (but not their topology), whether a gpu or cpu should be used.. 
+- `simulation_oriented.py`: the script to run the oriented agent simulation, takes the same arguments as above
+- `simulation_oriented_config.yml`: configuration file for the oriented PPM simulation; has additional parameters, hence the new file
+
+Additional files are:
+- `environment_slow_fR_decrease.py`: a version of the environment with a smaller decrease in foodreserve per turn, unfortunately hardcoded in the file. this issue was fixed in the orientedPPM version
+- `simulation_slow_fR_decrease.py`: needed because the different environment file must be loaded initially
+
+To run a simulation, invoke
+```
+python3 simulation_oriented.py --config simulation_oriented_config.yml
+```
+
+The location of the plots can be specified in the config file.
+
+The output are png files of the grid configurations, and additionally every N episodes a `.pth.tar` snapshot containing the current NN weights, and more simulation data like rewards, population sizes, etc.
