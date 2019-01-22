@@ -1,6 +1,10 @@
 # Imazalil
+The code base for my Bachelor's thesis at Heidelberg University. The files in the topmost directory are used to run "regular" agent based PPM simulations. The more interesting parts are "hidden" in the [actor-critic](actor-critic) directory. 
 
-## Agent basde model for Predator-Prey Simulations
+### Thesis
+The PDF of the thesis can be found [here](thesis/BA_Fabian_Krautgasser.pdf).
+
+## Agent based model for Predator-Prey Simulations
 
 Important files:
 - `ABM.py`: grid environment and agents for the simulation
@@ -17,9 +21,9 @@ because the simconfig file will be read in automatically.
 
 Important files in *actor-critic* subdirectory:
 - `actor_critic.py`: the policy classes as well as the means for action-selection and training the network (finish episode)
-- `agents.py`: Agent base-class, and Predator and Prey classes which inherit from Agent. Additionally, the OrientedPredator and OrientedPrey classes
-- `environment.py`: Environment base-class, and the `GridPPM` and `GridOrientedPPM` classes that inherit from the base class. The environments provide all the interactions between agents, as well as the initial population of a grid. They also provide methods to run a simulation like `reset`, `step` and `render`.
-- `simulation.py`: script to run the simulation. takes two optional arguments: `--config <configfile.yml>` and `--resume <simulation_snapshot.pth.tar>`, where the latter resumes from a certain point during training. The frequency of snapshot outputs can be set in the configuration file.
+- `agents.py`: `Agent` base-class, and `Predator` and `Prey` classes which inherit from `Agent`, as well as the `OrientedPredator` and `OrientedPrey` classes.
+- `environment.py`: `Environment` base-class, and the `GridPPM` and `GridOrientedPPM` classes that inherit from the base class. The environments provide all the interactions between agents, as well as the initial population of a grid. They also provide methods to run a simulation like `reset`, `step` and `render`.
+- `simulation.py`: script to run the simulation; takes two optional arguments: `--config <configfile.yml>` and `--resume <simulation_snapshot.pth.tar>`, where the latter resumes from a certain point during training. The frequency of snapshot outputs can be set in the configuration file.
 - `tools.py`: a collection of tools used for the simulation, like a input check for the internal functions, or a keyboard interrupt handler (very useful :D)
 - `rcParams.yml`: a small file to specify some arguments for matplotlib to make plots look nicer
 - `simulation_config.yml`: the acutal simulation config file. specifies things like gridsize, densities, rewards for the agents, sizes of layer in the NN (but not their topology), whether a gpu or cpu should be used.. 
